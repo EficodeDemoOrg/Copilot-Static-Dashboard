@@ -92,9 +92,10 @@ rewritten. See `devCsp()` in `vite.config.ts`.
 `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on every push to `main`.
 Enable Pages with source **GitHub Actions** in repository settings.
 
-The workflow sets `BASE_PATH=./` so the built asset URLs stay relative and work from either the
-Pages root URL or a project Pages subpath. A wrong base path produces a blank page with 404s on the
-assets.
+The workflow reads the deployment base path from `actions/configure-pages` and passes it to Vite.
+This produces the correct asset URLs for a Pages root URL, project subpath, custom domain, or
+access-controlled Pages URL. Before publishing, the workflow verifies that the HTML entry point
+exists and every referenced script and stylesheet is present at that base path.
 
 ## Adding a field or a new format
 

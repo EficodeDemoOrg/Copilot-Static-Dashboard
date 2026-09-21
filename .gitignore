@@ -1,0 +1,9 @@
+node_modules
+dist
+*.local
+.DS_Store
+.vite
+tsconfig.tsbuildinfo
+
+# Real Copilot usage exports — contain real GitHub logins. Never commit.
+tmp_files/

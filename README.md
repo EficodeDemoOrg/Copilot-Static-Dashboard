@@ -78,7 +78,7 @@ Requires Node.js 24 LTS and npm 11 or later.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173/copilot-dash/
+npm run dev        # http://localhost:5173/
 npm run build      # -> dist/
 npm run preview    # serve dist/ with the production CSP
 npm run typecheck
@@ -92,9 +92,9 @@ rewritten. See `devCsp()` in `vite.config.ts`.
 `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on every push to `main`.
 Enable Pages with source **GitHub Actions** in repository settings.
 
-The workflow sets `BASE_PATH=/<repo-name>/`, which is right for project Pages. If you publish to
-a user/org site (`<owner>.github.io`) or a custom domain, set `BASE_PATH=/` instead — a wrong
-base path produces a blank page with 404s on the assets.
+The workflow sets `BASE_PATH=/` because this site is served from the Pages root URL. If you publish
+to project Pages instead, change it to `BASE_PATH=/<repo-name>/` — a wrong base path produces a
+blank page with 404s on the assets.
 
 ## Adding a field or a new format
 
@@ -130,7 +130,7 @@ touch the charts:
   against both light and dark surfaces.
 - `src/styles/fonts.css` + `src/assets/fonts/` — Inter and JetBrains Mono, self-hosted as woff2
   subsets so the CSP and the no-network guarantee both hold. They live under `src/assets/` rather
-  than `public/` because Vite's `base` is `/copilot-dash/` on Pages, which an absolute `/fonts/…`
+  than `public/` because Vite's `base` may change by deployment target, which an absolute `/fonts/…`
   URL would not survive.
 - `src/components/EficodeLogo.tsx` — the Eficode mark, in the app header and the printed report
   header. It is the official two-path artwork with the fills bound to theme tokens (`--text-primary`

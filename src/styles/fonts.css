@@ -4,8 +4,8 @@
  * The CSP in index.html is `default-src 'self'` with `connect-src 'none'`, and the
  * README promises the app never touches the network after load. A Google Fonts link
  * would break both, so the woff2 subsets are vendored under src/assets/fonts/ and
- * referenced relatively — Vite hashes them and rewrites the URL against `base`
- * (/copilot-dash/ on Pages), which an absolute /fonts/… path would not survive.
+ * referenced relatively — Vite hashes them and rewrites the URL against `base`,
+ * which an absolute /fonts/… path would not survive.
  *
  * Variable fonts: one file per subset covers the whole weight range we use.
  * Only latin and latin-ext are shipped; the dashboard renders Latin-script text.

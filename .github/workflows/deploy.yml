@@ -29,10 +29,10 @@ jobs:
       - run: npm ci
 
       - name: Build
-        # Project Pages serve from /<repo>/. For a user/org site (<owner>.github.io)
-        # or a custom domain, set BASE_PATH to / instead.
+        # This Pages deployment is served from the site root, so build asset URLs
+        # against / rather than /<repo>/.
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          BASE_PATH: /
         run: npm run build
 
       - uses: actions/configure-pages@v6

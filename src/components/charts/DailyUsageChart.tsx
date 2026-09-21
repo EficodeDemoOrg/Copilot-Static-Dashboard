@@ -44,7 +44,7 @@ export function DailyUsageChart({ data, measure, label }: Props) {
           minTickGap={8}
         />
         <YAxis tickFormatter={fmtCompact} tick={tickStyle} tickLine={false} axisLine={false} width={48} />
-        <Tooltip content={<Tip />} cursor={{ stroke: chrome.axis, strokeWidth: 1 }} />
+        <Tooltip content={Tip} cursor={{ stroke: chrome.axis, strokeWidth: 1 }} />
         <Area
           type="monotone"
           dataKey={measure}

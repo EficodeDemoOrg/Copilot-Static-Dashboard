@@ -46,7 +46,7 @@ export function RankedBarChart({ data, measure, label, labelWidth = 150 }: Props
           axisLine={false}
           interval={0}
         />
-        <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-2)' }} />
+        <Tooltip content={Tip} cursor={{ fill: 'var(--surface-2)' }} />
         <Bar dataKey={measure} name={label} radius={[4, 4, 4, 4]} isAnimationActive={false}>
           {data.map((d) => (
             // "Other" is a remainder, not a category — keep it neutral.
@@ -55,7 +55,7 @@ export function RankedBarChart({ data, measure, label, labelWidth = 150 }: Props
           <LabelList
             dataKey={measure}
             position="right"
-            formatter={(v: number) => fmtNumber(v)}
+            formatter={(value) => fmtNumber(Number(value))}
             style={{ fill: ink.secondary, fontSize: 12 }}
           />
         </Bar>

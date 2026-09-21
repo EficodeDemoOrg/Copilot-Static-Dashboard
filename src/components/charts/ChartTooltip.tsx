@@ -1,4 +1,4 @@
-import type { TooltipProps } from 'recharts'
+import type { TooltipContentProps } from 'recharts'
 
 type Formatter = (value: number) => string
 
@@ -7,7 +7,7 @@ type Formatter = (value: number) => string
  * swatch beside the label, so identity is never carried by colored text.
  */
 export function makeTooltip(formatValue: Formatter, labelFor: (label: string) => string) {
-  return function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+  return function ChartTooltip({ active, payload, label }: TooltipContentProps) {
     if (!active || !payload?.length) return null
     return (
       <div className="tooltip">

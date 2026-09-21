@@ -15,6 +15,7 @@ import { fmtCompact, fmtDayLong, fmtNumber, fmtPercent } from './format'
 import { UploadPanel } from './components/UploadPanel'
 import { FilterBar } from './components/FilterBar'
 import { ReportHeader } from './components/ReportHeader'
+import { EficodeLogo } from './components/EficodeLogo'
 import { KpiRow, type Kpi } from './components/KpiRow'
 import { ChartCard } from './components/ChartCard'
 import { DailyUsageChart } from './components/charts/DailyUsageChart'
@@ -85,13 +86,16 @@ export function App() {
   return (
     <div className="app">
       <header className="appbar no-print">
-        <div>
-          <h1 className="appbar__title">Copilot Usage Dashboard</h1>
-          <p className="appbar__sub">
-            {loaded
-              ? `${loaded.dataset.fileNames.length === 1 ? loaded.dataset.fileNames[0] : `${loaded.dataset.fileNames.length} files`} · ${loaded.dataset.records.length.toLocaleString()} user-days`
-              : 'Upload a GitHub Copilot usage metrics export — it never leaves your browser.'}
-          </p>
+        <div className="appbar__brand">
+          <EficodeLogo height={44} />
+          <div>
+            <h1 className="appbar__title">Copilot Usage Dashboard</h1>
+            <p className="appbar__sub">
+              {loaded
+                ? `${loaded.dataset.fileNames.length === 1 ? loaded.dataset.fileNames[0] : `${loaded.dataset.fileNames.length} files`} · ${loaded.dataset.records.length.toLocaleString()} user-days`
+                : 'Upload a GitHub Copilot usage metrics export — it never leaves your browser.'}
+            </p>
+          </div>
         </div>
         {loaded && (
           <div className="appbar__actions">

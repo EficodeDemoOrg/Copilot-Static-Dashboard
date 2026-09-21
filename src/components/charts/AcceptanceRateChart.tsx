@@ -50,7 +50,7 @@ export function AcceptanceRateChart({ data, average }: Props) {
           axisLine={false}
           width={48}
         />
-        <Tooltip content={<Tip />} cursor={{ stroke: chrome.axis, strokeWidth: 1 }} />
+        <Tooltip content={Tip} cursor={{ stroke: chrome.axis, strokeWidth: 1 }} />
         {average !== null && (
           <ReferenceLine y={average} stroke={chrome.axis} strokeDasharray="4 4" />
         )}

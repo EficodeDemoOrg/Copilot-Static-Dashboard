@@ -11,35 +11,52 @@
     margin: 14mm;
   }
 
-  /* Force the light token set — a dark-mode viewer must still get a light PDF. */
+  /*
+   * Force the light token set — a dark-mode viewer must still get a light PDF.
+   * Every token the screen theme defines is redeclared here, including the status
+   * and accent ones: anything omitted would inherit the dark value on a dark-mode
+   * machine and print as a surprise.
+   */
   :root,
   :root:not([data-theme='light']) {
     color-scheme: light;
 
     --page:           #ffffff;
     --surface-1:      #ffffff;
-    --surface-2:      #f2f2ee;
-    --border:         rgba(11, 11, 11, 0.18);
+    --surface-2:      #f0f0ec;   /* eficode-grey-light */
+    --border:         #b5aea9;   /* eficode-gray — heavier than on screen, ink is thin */
 
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
+    --text-primary:   #101820;   /* eficode-almost-black */
+    --text-secondary: #4a4641;
     --text-muted:     #6d6b66;
 
-    --grid:           #e1e0d9;
+    --grid:           #e6e4de;
     --axis:           #a9a79f;
 
-    --series-1: #2a78d6;
-    --series-2: #eb6834;
-    --series-3: #1baf7a;
-    --series-4: #eda100;
-    --series-5: #e87ba4;
-    --series-6: #008300;
-    --series-7: #4a3aa7;
-    --series-8: #e34948;
+    --series-1: #007fa3;   /* eficode-cornflower-blue */
+    --series-2: #f06400;   /* eficode-mango-tango */
+    --series-3: #773dbe;
+    --series-4: #c39800;
+    --series-5: #e3589e;
+    --series-6: #008320;
+    --series-7: #0055ba;
+    --series-8: #d4393b;
+
+    --accent:         #ffd100;   /* eficode-yellow */
+    --accent-hover:   #ffb500;
+    --accent-ink:     #101820;
+    --focus:          #003e51;   /* eficode-indigo */
+    --link:           #003e51;
+    --info:           #007fa3;
+    --good:           #0f7a4a;
+    --warning:        #a87400;
+    --critical:       #f06400;
+
+    --shadow:         rgba(16, 24, 32, 0.12);
   }
 
   body {
-    background: #fff;
+    background: var(--page);
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -62,7 +79,7 @@
   /* The printed report describes itself: title, source file, filters, timestamp. */
   .report-header {
     display: block;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 3px solid var(--accent);
     padding-bottom: 10px;
     margin-bottom: 4px;
   }

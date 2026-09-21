@@ -74,6 +74,8 @@ Treat every field as optional.
 
 ## Development
 
+Requires Node.js 24 LTS and npm 11 or later.
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173/copilot-dash/
@@ -114,10 +116,27 @@ touch the charts:
 - `src/data/` — types, adapters, NDJSON parsing, aggregation. No React.
 - `src/components/charts/` — one component per visualization, all Recharts (SVG, so PDFs are
   vector).
+- `src/styles/app.css` — the Eficode brand tokens, in three sets (light, dark, and print over in
+  `print.css`). Brand yellow `#ffd100` is the **UI accent only** — buttons, active states, the
+  printed report rule. It cannot carry data: it sits above the categorical lightness band, and
+  darkened into band it is indistinguishable from mango tango under deuteranopia (ΔE 2.3, floor
+  6). Focus rings get their own `--focus` token for the same reason — a yellow ring on white is
+  1.46:1.
 - `src/theme/palette.ts` — chart colors as CSS custom-property references. Color follows the
-  *measure*, not the card: people are blue, interaction volume orange, acceptance quality violet.
-  All three clear 3:1 against both light and dark surfaces and are validated for colour-vision
-  deficiency.
+  *measure*, not the card: people are cornflower blue, interaction volume mango tango, acceptance
+  quality violet. Those three sit on series slots 1–3, the trio that clears the colour-vision
+  *all-pairs* test in both modes; the slot order of the full eight is a validated artefact, not a
+  preference, so re-ordering it needs a re-run rather than an opinion. All three clear 3:1
+  against both light and dark surfaces.
+- `src/styles/fonts.css` + `src/assets/fonts/` — Inter and JetBrains Mono, self-hosted as woff2
+  subsets so the CSP and the no-network guarantee both hold. They live under `src/assets/` rather
+  than `public/` because Vite's `base` is `/copilot-dash/` on Pages, which an absolute `/fonts/…`
+  URL would not survive.
+- `src/components/EficodeLogo.tsx` — the Eficode mark, in the app header and the printed report
+  header. It is the official two-path artwork with the fills bound to theme tokens (`--text-primary`
+  for the badge, `--surface-1` for the knocked-out wordmark), so one asset inverts correctly in
+  dark mode and prints solid. `public/favicon.svg` is the same mark with static fills — a favicon
+  cannot follow the page theme.
 - `src/hooks/usePrintMode.ts` — Recharts' `ResponsiveContainer` measures via `ResizeObserver`,
   which does not fire during print layout, so charts would render at 0×0 in the PDF.
   `ChartFrame` swaps in explicit pixel dimensions while printing.

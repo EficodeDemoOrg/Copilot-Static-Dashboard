@@ -1,6 +1,7 @@
 import type { Filters } from '../data/metrics'
 import { fmtDayLong } from '../format'
 import type { ReportWindow } from '../data/types'
+import { EficodeLogo } from './EficodeLogo'
 
 interface Props {
   fileNames: string[]
@@ -35,7 +36,10 @@ export function ReportHeader({ fileNames, adapterLabel, reportWindow, range, fil
 
   return (
     <header className="report-header">
-      <h1 className="appbar__title">Copilot usage report</h1>
+      <div className="appbar__brand">
+        <EficodeLogo height={38} />
+        <h1 className="appbar__title">Copilot usage report</h1>
+      </div>
       <p className="appbar__sub">
         {parts.join(' · ')} · Generated {generatedAt.toLocaleString('en-GB')}
       </p>

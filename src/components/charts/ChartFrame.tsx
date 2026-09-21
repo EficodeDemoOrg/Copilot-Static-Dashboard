@@ -5,7 +5,7 @@ import { PRINT_CHART_WIDTH, usePrintMode } from '../../hooks/usePrintMode'
 interface Props {
   height: number
   /** A single Recharts chart element (AreaChart, BarChart, …). */
-  children: ReactElement
+  children: ReactElement<{ width?: number; height?: number }>
 }
 
 /**

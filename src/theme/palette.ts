@@ -2,9 +2,11 @@
  * Chart colors as CSS custom-property references, so light/dark/print swap in one
  * place (src/styles/app.css, src/styles/print.css) and no component carries a hex.
  *
- * Values come from the validated reference palette. Adjacent-pair CVD and
- * normal-vision floors pass in both modes for all eight slots; charts that put
- * every series on screen at once (scatter, bubble) must cap at the first three.
+ * Values are the Eficode brand palette: cornflower blue and mango tango are brand
+ * hexes, the remaining six are derived in OKLCH because the brand book supplies
+ * only three in-band hues. Adjacent-pair CVD and normal-vision floors pass in both
+ * modes for all eight slots; charts that put every series on screen at once
+ * (scatter, bubble) must cap at the first three.
  */
 export const series = [
   'var(--series-1)',
@@ -30,9 +32,18 @@ export const chrome = {
 } as const
 
 /**
- * Color follows the measure, not the card: people are blue wherever they appear,
- * interaction volume is orange, acceptance quality is violet. Three hues across
- * the dashboard rather than one per chart, so a reader learns the mapping once.
+ * Color follows the measure, not the card: people are cornflower blue wherever they
+ * appear, interaction volume is mango tango, acceptance quality is violet. Three
+ * hues across the dashboard rather than one per chart, so a reader learns the
+ * mapping once.
+ *
+ * These three live on slots 1-3 deliberately. The measures sit on separate cards,
+ * but a reader carries the mapping between cards, so they have to be mutually
+ * distinguishable rather than merely distinguishable from their neighbours — that
+ * is the all-pairs test, and slots 1-3 are the trio that clears it in both modes.
+ * Violet is not a style choice: beside brand cornflower and mango it is the only
+ * third hue that passes (green ΔE 2.2, brand yellow 2.3, teal and deep blue fail
+ * the normal-vision floor).
  *
  * All three clear 3:1 against both the light and dark chart surfaces, so no
  * chart here depends on the relief rule to stay readable.
@@ -41,8 +52,8 @@ export const measureColor = {
   activeUsers: series[0],
   interactions: series[1],
   generations: series[1],
-  acceptances: series[6],
-  acceptanceRate: series[6],
+  acceptances: series[2],
+  acceptanceRate: series[2],
 } as const
 
 export type Measure = keyof typeof measureColor

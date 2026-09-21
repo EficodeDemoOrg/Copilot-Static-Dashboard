@@ -29,10 +29,9 @@ jobs:
       - run: npm ci
 
       - name: Build
-        # This Pages deployment is served from the site root, so build asset URLs
-        # against / rather than /<repo>/.
+        # Use relative asset URLs so the built app works from either / or /<repo>/.
         env:
-          BASE_PATH: /
+          BASE_PATH: ./
         run: npm run build
 
       - uses: actions/configure-pages@v6

@@ -1,9 +1,9 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// This repo's GitHub Pages deployment is served from /, but BASE_PATH remains
-// overrideable for alternative deployments such as project Pages.
-const base = process.env.BASE_PATH ?? '/'
+// Use relative asset URLs by default so the built app works under either the
+// site root or a project Pages subpath; override with BASE_PATH if needed.
+const base = process.env.BASE_PATH ?? './'
 
 /**
  * The shipped index.html carries a deliberately strict CSP (connect-src 'none').

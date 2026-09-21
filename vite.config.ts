@@ -1,9 +1,9 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// GitHub project Pages serve from /<repo>/, user/org Pages and custom domains from /.
-// CI sets BASE_PATH from the repo name; override locally if you deploy elsewhere.
-const base = process.env.BASE_PATH ?? '/copilot-dash/'
+// Use relative asset URLs by default so the built app works under either the
+// site root or a project Pages subpath; override with BASE_PATH if needed.
+const base = process.env.BASE_PATH ?? './'
 
 /**
  * The shipped index.html carries a deliberately strict CSP (connect-src 'none').

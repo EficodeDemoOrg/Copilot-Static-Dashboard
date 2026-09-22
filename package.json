@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "generate:sample": "node scripts/generate-sample-data.mjs > src/data/sample.ndjson"
   },
   "dependencies": {
     "react": "^19.3.0",

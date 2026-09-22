@@ -92,6 +92,32 @@
     box-shadow: none;
   }
 
+  /*
+   * Complete disclosures print always expanded — RankingDisclosure forces the
+   * `<details>` open via usePrintMode() before this stylesheet ever applies, so
+   * these rules only shape the already-open element for paper. Deliberately no
+   * break-inside:avoid on `.disclosure` or `.disclosure__list`: a long complete
+   * list (e.g. every skill) must be allowed to flow across pages rather than
+   * being clipped or forced into one oversized unbreakable block.
+   */
+  .disclosure {
+    border-color: var(--border);
+    box-shadow: none;
+  }
+  /* A marker/pointer cursor implies clickability paper doesn't have. */
+  .disclosure__summary {
+    cursor: default;
+    /* Keep the header with at least the start of its content where the page allows. */
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .disclosure__summary::before { content: none; }
+  /* One row never splits across a page boundary, even though the list itself may. */
+  .disclosure__row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   /* One chart per row reads better on a portrait page than two squeezed columns. */
   .grid-2 {
     grid-template-columns: 1fr;

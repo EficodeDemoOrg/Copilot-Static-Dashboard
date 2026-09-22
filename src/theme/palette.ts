@@ -63,6 +63,13 @@ export const measureColor = {
    */
   locAdded: series[5],
   locDeleted: series[7],
+  /**
+   * Customization rankings (custom agents, MCP servers, skills, plugins, slash
+   * commands) are a distinct measure family from the volume/quality/person
+   * trio above, so they get their own slot rather than borrowing one that
+   * already carries a meaning elsewhere on the dashboard.
+   */
+  interactionCount: series[6],
 } as const
 
 export type Measure = keyof typeof measureColor

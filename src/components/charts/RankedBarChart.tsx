@@ -4,6 +4,7 @@ import { ink, measureColor, otherFill, tickStyle } from '../../theme/palette'
 import { fmtCompact, fmtNumber } from '../../format'
 import { makeTooltip } from './ChartTooltip'
 import { ChartFrame } from './ChartFrame'
+import { categoryAxisTick } from './CategoryAxisTick'
 
 /** Any ranked row this chart can plot — feature/measure totals, or a customization ranking. */
 type RankedDatum = NamedTotal | CustomizationRanking
@@ -56,7 +57,7 @@ export function RankedBarChart({ data, measure, label, labelWidth = 150, color, 
           type="category"
           dataKey="name"
           width={labelWidth}
-          tick={tickStyle}
+          tick={categoryAxisTick(labelWidth)}
           tickLine={false}
           axisLine={false}
           interval={0}

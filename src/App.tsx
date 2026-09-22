@@ -228,7 +228,10 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
             <FeatureInteractionsChart data={featureInteractions} />
           </ChartCard>
 
-          <ChartCard title="Code generations and acceptances per day">
+          <ChartCard
+            title="Code generations and acceptances per day"
+            subtitle="Independent counts, plotted together — never combined into an acceptance-rate percentage."
+          >
             <GenerationsAcceptancesChart data={daily} />
           </ChartCard>
 
@@ -251,7 +254,10 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
             />
           </ChartCard>
 
-          <ChartCard title="AI Adoption per User">
+          <ChartCard
+            title="AI Adoption per User"
+            subtitle="Each user's highest adoption phase reached in the selected range, not their most recent."
+          >
             <AdoptionPhaseChart data={adoptionPhases} />
           </ChartCard>
 
@@ -281,12 +287,18 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
             />
           </ChartCard>
 
-          <ChartCard title="Daily lines of code per user, mean and deviation">
+          <ChartCard
+            title="Daily lines of code per user, mean and deviation"
+            subtitle="Mean and ±1 population standard deviation across that day's user records, not across daily organization totals."
+          >
             <LocDeviationChart data={locDeviationDaily} />
           </ChartCard>
 
           <div className="grid-2">
-            <ChartCard title="Top 5 models by LoC changed">
+            <ChartCard
+              title="Top 5 models by LoC changed"
+              subtitle="Ranked by combined added + deleted LoC; added and deleted are shown as separate bars."
+            >
               <LocGroupedBarChart
                 data={topModels}
                 labelWidth={130}
@@ -294,7 +306,10 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
                 emptyMessage="No attributed model LoC data for this range."
               />
             </ChartCard>
-            <ChartCard title="Top 5 languages by LoC changed">
+            <ChartCard
+              title="Top 5 languages by LoC changed"
+              subtitle="Ranked by combined added + deleted LoC; added and deleted are shown as separate bars."
+            >
               <LocGroupedBarChart
                 data={topLanguages}
                 labelWidth={130}
@@ -305,7 +320,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
           </div>
 
           <div className="grid-compact">
-            <ChartCard title="Top 5 custom agents">
+            <ChartCard title="Top 5 custom agents" subtitle="Ranked by interaction count.">
               <RankedBarChart
                 data={customAgents.top}
                 measure="interactionCount"

@@ -283,9 +283,16 @@ code {
 .filters__count { font-size: 13px; color: var(--text-secondary); }
 
 /* ---------- Charts grid ---------- */
+/*
+ * minmax(min(Npx, 100%), 1fr) rather than minmax(Npx, 1fr): a bare Npx floor
+ * cannot shrink below N even when the viewport itself is narrower, which forces
+ * horizontal page overflow on mobile widths below N + the .app padding. Wrapping
+ * the floor in min(Npx, 100%) lets the single remaining track shrink to fit a
+ * narrow container while still preferring Npx on anything wide enough to offer it.
+ */
 .grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   align-items: start;
   gap: 16px;
 }
@@ -294,7 +301,7 @@ code {
    handful of bars, so more than two fit per row on desktop. */
 .grid-compact {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   align-items: start;
   gap: 16px;
 }

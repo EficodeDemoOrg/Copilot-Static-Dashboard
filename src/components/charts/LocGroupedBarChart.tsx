@@ -4,6 +4,7 @@ import { ink, measureColor, tickStyle } from '../../theme/palette'
 import { fmtCompact, fmtNumber } from '../../format'
 import { makeTooltip } from './ChartTooltip'
 import { ChartFrame } from './ChartFrame'
+import { categoryAxisTick } from './CategoryAxisTick'
 
 /**
  * Attribution disclaimer for breakdowns GitHub can omit unattributed activity
@@ -52,7 +53,7 @@ export function LocGroupedBarChart({ data, labelWidth = 150, emptyMessage, note 
             type="category"
             dataKey="name"
             width={labelWidth}
-            tick={tickStyle}
+            tick={categoryAxisTick(labelWidth)}
             tickLine={false}
             axisLine={false}
             interval={0}

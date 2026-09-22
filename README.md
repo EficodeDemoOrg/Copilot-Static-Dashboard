@@ -7,22 +7,43 @@ Deployed to GitHub Pages — see the repository's Pages URL.
 
 ## What it does
 
-Drop in a Copilot usage metrics export and get:
+Drop in a Copilot usage metrics export and get four daily graphs, a set of
+feature/adoption/credit/LoC visualizations, top-five model/language/customization rankings, and
+five complete end-of-report disclosures:
+
+**Four daily graphs**
 
 - **Interactions per day, by feature** — the top 7 features stacked, remainder folded into Other
-- **Code generations and acceptances per day**
+- **Code generations and acceptances per day** — two independent counts plotted together; this
+  chart never derives or implies an acceptance-rate percentage
 - **Daily users by surface** — IDE agent mode, IDE chat, the CLI, and Copilot cloud/coding agent
   (one combined line — GitHub documents the cloud and coding agent flags as the same signal)
 - **AI credits per day**
+
+**Feature, adoption, credit, and LoC visualizations**
+
 - **LoC added/deleted per feature**
-- **Highest AI adoption phase per user** and **average AI credits per distinct user seen**
-- **Anonymous per-user AI credit distribution** — an unlabeled dot plot with mean and
-  population-standard-deviation markers
-- **Daily lines of code per user** — mean and population-standard-deviation bands for
-  additions/deletions
-- **Top 5 models and languages by LoC changed**
-- **Top 5 custom agents, MCP servers, skills, plugins, and slash commands**, each followed by a
-  complete ranked disclosure at the end of the report
+- **AI adoption per user** — each user's *highest* numeric adoption phase reached in the selected
+  period, not their most recent
+- **Average AI credits per distinct user seen**, plus average daily AI credits per user and in
+  total
+- **Anonymous per-user AI credit distribution** — an unlabeled dot plot: one point per user with
+  no ID or stable pseudonym attached, plus mean and population-standard-deviation markers
+- **Daily lines of code per user** — mean and population-standard-deviation bands computed across
+  that day's user records, not across daily organization totals
+
+**Top-five rankings**
+
+- **Top 5 models and languages by LoC changed** — ranked by combined added + deleted LoC, shown as
+  separate added/deleted bars
+- **Top 5 custom agents, MCP servers, skills, plugins, and slash commands** — ranked by
+  interaction count
+
+**Five complete disclosures**
+
+Each customization ranking is followed by its own complete ranked list (all skills, all MCP
+servers, all agents, all slash commands, all plugins) in a collapsible section that is always
+expanded in the printed/exported PDF, regardless of its on-screen state.
 
 Filter by date range and organization, then hit **Export PDF**.
 
@@ -38,9 +59,12 @@ This is the point of the tool, so it is enforced rather than promised:
   dataset is bundled into the JS rather than fetched, and parsing runs on the main thread rather
   than in a blob worker, precisely so that policy can stay this strict.
 - No analytics, no fonts or scripts from a CDN.
-- The normalized data model never carries a GitHub username/login. `user_id` (numeric, stable) is
-  the only identity used, for de-duplication and distinct-user counts — see `UserDay` in
-  `src/data/types.ts`.
+- **The app never displays GitHub usernames.** The normalized data model never carries a
+  `user_login` — `user_id` (numeric, stable) is the only identity used, for de-duplication and
+  distinct-user counts — see `UserDay` in `src/data/types.ts`.
+- The anonymous per-user AI credit dot plots render every user as an unlabeled point: no user ID,
+  login, or stable pseudonym is attached to a point, and the point's position on the anonymous
+  axis carries no re-identifiable meaning.
 
 **`tmp_files/` is gitignored** — real exports contain real GitHub usernames and must never be
 committed. The bundled sample is synthetic, with invented logins.
@@ -58,29 +82,59 @@ that fails to parse is counted and skipped rather than failing the whole upload.
 Download yours from your enterprise or organization Copilot settings. There is a synthetic
 sample behind **Try with sample data**.
 
-### Three things the data does that will bite you
+Optional schema fields (breakdown arrays, `ai_adoption_phase`, the `used_*` flags, …) can be
+absent or empty on any record. Rather than a blank or a thrown error, each visualization that
+depends on one shows its own targeted empty state (e.g. "No attributed feature LoC data for this
+range.") explaining what specifically is missing.
 
-Measured across the 790 records of a real 86-user, 28-day export:
+## Metric definitions
 
-1. **`totals_by_feature` and `totals_by_language_feature` reconcile exactly** with the top-level
-   counts. **`totals_by_ide` and the model breakdowns do not** — 97–144 records disagree,
-   because some activity is unattributed. Only `user_initiated_interaction_count` reconciles for
-   `totals_by_model_feature`. Any model or IDE chart must be framed as a share of *attributed*
-   activity, not of the total.
+Formulas and choices that are not obvious from a chart title alone:
 
-2. **`loc_added_sum` can exceed `loc_suggested_to_add_sum`** — on 131 of 790 records, and by 8%
-   sample-wide. **There is no LoC acceptance rate.** Lines added is a magnitude, never a
-   numerator. The bounded quality metric is
-   `code_acceptance_activity_count / code_generation_activity_count`.
+- **Feature interactions** show the top 7 features by interaction count over the selected range,
+  plus a complete `Other` tail — no feature's activity is ever dropped, only folded.
+- **Generations and acceptances are independent counts**, plotted on the same axis. Neither this
+  app nor the export defines a LoC-based acceptance rate — see Interpretation limits below.
+- **Copilot cloud/coding agent appears once**, not twice: GitHub documents
+  `used_copilot_coding_agent` and `used_copilot_cloud_agent` as backward-compatible names for the
+  same signal, so the two are folded with a logical OR into one line.
+- **Adoption distribution** uses each user's *highest* numeric adoption phase seen in the selected
+  period, not their most recent or an average — a user who ever reached Phase 3 in range counts
+  as Phase 3, even if most of their days were Phase 1.
+- **Average AI credits per distinct user** = total AI credits ÷ distinct users seen in the
+  selected range.
+- **Credit and LoC deviations use population standard deviation** (`sqrt(sum((x - mean)²) / N)`),
+  never the sample (`N - 1`) form — the filtered export *is* the full population being reported,
+  not a sample drawn from a larger one.
+- **Daily LoC deviation is computed across that day's user records**, not across daily
+  organization-wide totals — the mean and spread describe how individual users' LoC varied on
+  that day, not day-to-day variance in an org total.
+- **Top models and languages rank by combined LoC added + deleted**, but the two measures are
+  always displayed as separate bars — they are never netted into one "changed lines" number.
+- **Customization rankings** (custom agents, MCP servers, skills, plugins, slash commands) rank by
+  interaction count.
 
-3. **43% of records have zero interactions and zero generations** while still carrying AI
-   credits. A record is not an active day. This app defines a user-day as active when
-   `interactions > 0 || generations > 0`, states that rule wherever the number appears, and
-   surfaces the gap between users seen and users active — those are the dormant seats.
+## Interpretation limits
 
-The schema is also visibly still growing: `used_cli` appeared on 469/790 records,
-`totals_by_skill` on 719, `totals_by_cli` on 122, `totals_by_3rd_party_agent` on exactly one.
-Treat every field as optional.
+- **AI credits are a consumption analysis, not an invoice total.** This export and this app do
+  not reproduce GitHub's billing calculation; treat credit figures as a usage signal, not a bill.
+- **AI credits are not attributed by feature, model, or surface** in this export. There is no
+  chart (and no way) to say "these credits were spent on chat" — only a per-day, per-user, or
+  per-organization total.
+- **Model and language LoC breakdowns cover attributed rows only.** GitHub's `totals_by_model_feature`
+  and `totals_by_language_feature` can omit unattributed activity, so those totals may not
+  reconcile with the top-level lines-added/deleted figures — see `ATTRIBUTED_LOC_NOTE` in
+  `src/components/charts/LocGroupedBarChart.tsx`, which every model/language chart in the app
+  displays alongside its numbers.
+- **LoC added is a magnitude, not an acceptance rate.** `loc_added_sum` can exceed
+  `loc_suggested_to_add_sum` in real exports, so lines added must never be read as a numerator
+  over suggested lines — there is no LoC-based acceptance rate anywhere in this app.
+- **Optional schema fields can be absent or empty** and produce a targeted empty state rather than
+  a broken chart — see "Supported input" above.
+
+The schema is also still growing across real exports: fields such as `used_cli`,
+`totals_by_skill`, `totals_by_cli`, and `totals_by_3rd_party_agent` do not appear on every record,
+and some appear on very few. Treat every field as optional.
 
 ## Development
 

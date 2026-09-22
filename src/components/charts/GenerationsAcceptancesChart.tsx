@@ -14,9 +14,8 @@ interface Props {
 
 /**
  * Code generations and acceptances per day, plotted together on one shared
- * count axis. Deliberately counts only — acceptance *rate* has its own
- * dedicated chart (`AcceptanceRateChart`) with its own 0-100% axis and null
- * gap handling, so this chart never recomputes or implies a percentage.
+ * count axis. Deliberately counts only — this chart never recomputes or
+ * implies an acceptance-rate percentage.
  */
 export function GenerationsAcceptancesChart({ data }: Props) {
   return (

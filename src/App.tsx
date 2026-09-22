@@ -1,20 +1,44 @@
 import { useCallback, useMemo, useState } from 'react'
 import { parseFiles, parseNdjsonText, ReportFormatError } from './data/parseNdjson'
 import type { Dataset } from './data/types'
-import { applyFilters, byDay, dateRange, distinctOrgs, totals, type Filters } from './data/metrics'
+import {
+  adoptionPhaseDistribution,
+  anonymousAiCreditsPerUser,
+  applyFilters,
+  averageAiCredits,
+  byDay,
+  customAgentRanking,
+  dailyLocDeviation,
+  dateRange,
+  distinctOrgs,
+  interactionsByFeaturePerDay,
+  locByFeature,
+  mcpRanking,
+  pluginRanking,
+  skillRanking,
+  slashCommandRanking,
+  topLanguageLoc,
+  topModelLoc,
+  usersBySurfaceByDay,
+  type Filters,
+} from './data/metrics'
 import { SAMPLE_FILE_NAME, SAMPLE_NDJSON } from './data/sample'
-import { fmtCompact, fmtDayLong, fmtNumber, fmtPercent } from './format'
 import { UploadPanel } from './components/UploadPanel'
 import { FilterBar } from './components/FilterBar'
 import { ReportHeader } from './components/ReportHeader'
 import { EficodeLogo } from './components/EficodeLogo'
-import { KpiRow, type Kpi } from './components/KpiRow'
 import { ChartCard } from './components/ChartCard'
-import { DailyUsageChart } from './components/charts/DailyUsageChart'
-import { AcceptanceRateChart } from './components/charts/AcceptanceRateChart'
-
-/** Stated wherever an "active" count appears — 43% of records fail this test. */
-const ACTIVE_RULE = 'A user counts as active on a day with at least one interaction or code generation.'
+import { RankingDisclosure } from './components/RankingDisclosure'
+import { FeatureInteractionsChart } from './components/charts/FeatureInteractionsChart'
+import { GenerationsAcceptancesChart } from './components/charts/GenerationsAcceptancesChart'
+import { SurfaceUsageChart } from './components/charts/SurfaceUsageChart'
+import { AiCreditsChart } from './components/charts/AiCreditsChart'
+import { ATTRIBUTED_LOC_NOTE, LocGroupedBarChart } from './components/charts/LocGroupedBarChart'
+import { AdoptionPhaseChart } from './components/charts/AdoptionPhaseChart'
+import { AverageAiCreditsStat } from './components/charts/AverageAiCreditsStat'
+import { AnonymousCreditDotPlot } from './components/charts/AnonymousCreditDotPlot'
+import { LocDeviationChart } from './components/charts/LocDeviationChart'
+import { RankedBarChart } from './components/charts/RankedBarChart'
 
 interface Loaded {
   dataset: Dataset
@@ -130,42 +154,36 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
 
   const filtered = useMemo(() => applyFilters(records, filters), [records, filters])
 
-  const t = useMemo(() => totals(filtered), [filtered])
   const range = useMemo(() => dateRange(filtered), [filtered])
-  const daily = useMemo(() => {
+
+  // Shared basis for every zero-filled daily series, so the daily/deviation
+  // charts never silently disagree on span: the report window, narrowed by
+  // whichever date filter is tighter.
+  const dailyBounds = useMemo(() => {
     const lo = filters.start && filters.start > (bounds?.start ?? '') ? filters.start : bounds?.start
     const hi = filters.end && filters.end < (bounds?.end ?? '') ? filters.end : bounds?.end
-    return byDay(filtered, lo && hi ? { start: lo, end: hi } : undefined)
-  }, [filtered, filters.start, filters.end, bounds])
-  const kpis: Kpi[] = [
-    {
-      label: 'Active users',
-      value: fmtNumber(t.activeUsers),
-      hint:
-        t.usersSeen > t.activeUsers
-          ? `of ${fmtNumber(t.usersSeen)} in the export — ${fmtNumber(t.usersSeen - t.activeUsers)} never active`
-          : 'with at least one active day',
-    },
-    {
-      label: 'Active user-days',
-      value: fmtNumber(t.activeUserDays),
-      hint: `of ${fmtNumber(t.records)} recorded`,
-    },
-    { label: 'Interactions', value: fmtNumber(t.interactions), hint: 'user-initiated' },
-    { label: 'Code generations', value: fmtNumber(t.generations) },
-    {
-      label: 'Acceptance rate',
-      value: fmtPercent(t.acceptanceRate),
-      hint: `${fmtCompact(t.acceptances)} accepted`,
-    },
-    { label: 'Lines added', value: fmtCompact(t.locAdded), hint: `${fmtCompact(t.locDeleted)} deleted` },
-    { label: 'AI credits', value: fmtCompact(t.aiCredits) },
-    {
-      label: 'Date range',
-      value: range ? fmtDayLong(range.start) : '—',
-      hint: range ? `to ${fmtDayLong(range.end)}` : undefined,
-    },
-  ]
+    return lo && hi ? { start: lo, end: hi } : undefined
+  }, [filters.start, filters.end, bounds])
+
+  const daily = useMemo(() => byDay(filtered, dailyBounds), [filtered, dailyBounds])
+  const featureInteractions = useMemo(
+    () => interactionsByFeaturePerDay(filtered, dailyBounds),
+    [filtered, dailyBounds],
+  )
+  const surfaceDaily = useMemo(() => usersBySurfaceByDay(filtered, dailyBounds), [filtered, dailyBounds])
+  const locDeviationDaily = useMemo(() => dailyLocDeviation(filtered, dailyBounds), [filtered, dailyBounds])
+
+  const featureLoc = useMemo(() => locByFeature(filtered), [filtered])
+  const adoptionPhases = useMemo(() => adoptionPhaseDistribution(filtered), [filtered])
+  const avgCredits = useMemo(() => averageAiCredits(filtered), [filtered])
+  const creditDistribution = useMemo(() => anonymousAiCreditsPerUser(filtered), [filtered])
+  const topModels = useMemo(() => topModelLoc(filtered), [filtered])
+  const topLanguages = useMemo(() => topLanguageLoc(filtered), [filtered])
+  const customAgents = useMemo(() => customAgentRanking(filtered), [filtered])
+  const mcps = useMemo(() => mcpRanking(filtered), [filtered])
+  const skills = useMemo(() => skillRanking(filtered), [filtered])
+  const plugins = useMemo(() => pluginRanking(filtered), [filtered])
+  const slashCommands = useMemo(() => slashCommandRanking(filtered), [filtered])
 
   if (!bounds) return <p className="empty">No dated records in this export.</p>
 
@@ -199,30 +217,118 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
         <p className="empty">No records match the current filters.</p>
       ) : (
         <>
-          <KpiRow items={kpis} />
-
           <ChartCard
-            title="Active users per day"
-            subtitle={`How many people used Copilot each day. ${ACTIVE_RULE}`}
+            title="Interactions per day, by feature"
+            subtitle="Stacked by the top 7 features in this range; every other feature folds into Other."
           >
-            <DailyUsageChart data={daily} measure="activeUsers" label="Active users" />
+            <FeatureInteractionsChart data={featureInteractions} />
+          </ChartCard>
+
+          <ChartCard title="Code generations and acceptances per day">
+            <GenerationsAcceptancesChart data={daily} />
           </ChartCard>
 
           <ChartCard
-            title="Interactions per day"
-            subtitle="User-initiated interactions — chats, agent turns, and commands. Shown on its own scale rather than sharing an axis with the user count above."
+            title="Daily users by surface"
+            subtitle="Distinct users per day using IDE agent mode, IDE chat, the CLI, and Copilot cloud/coding agent."
           >
-            <DailyUsageChart data={daily} measure="interactions" label="Interactions" />
+            <SurfaceUsageChart data={surfaceDaily} />
           </ChartCard>
 
-          <ChartCard
-            title="Acceptance rate per day"
-            subtitle={`Accepted code suggestions as a share of those generated${
-              t.acceptanceRate !== null ? `; the dashed line is the period average, ${fmtPercent(t.acceptanceRate)}` : ''
-            }. Days with no generations are left as a gap, not plotted as zero.`}
-          >
-            <AcceptanceRateChart data={daily} average={t.acceptanceRate} />
+          <ChartCard title="AI credits per day">
+            <AiCreditsChart data={daily} />
           </ChartCard>
+
+          <ChartCard title="LoC added/deleted per feature">
+            <LocGroupedBarChart
+              data={featureLoc}
+              labelWidth={170}
+              emptyMessage="No attributed feature LoC data for this range."
+            />
+          </ChartCard>
+
+          <div className="grid-2">
+            <ChartCard title="Highest AI adoption phase per user">
+              <AdoptionPhaseChart data={adoptionPhases} />
+            </ChartCard>
+            <AverageAiCreditsStat value={avgCredits} />
+          </div>
+
+          <ChartCard title="Anonymous per-user AI credit distribution">
+            <AnonymousCreditDotPlot data={creditDistribution} />
+          </ChartCard>
+
+          <ChartCard title="Daily lines of code per user, mean and deviation">
+            <LocDeviationChart data={locDeviationDaily} />
+          </ChartCard>
+
+          <div className="grid-2">
+            <ChartCard title="Top 5 models by LoC changed">
+              <LocGroupedBarChart
+                data={topModels}
+                labelWidth={130}
+                note={ATTRIBUTED_LOC_NOTE}
+                emptyMessage="No attributed model LoC data for this range."
+              />
+            </ChartCard>
+            <ChartCard title="Top 5 languages by LoC changed">
+              <LocGroupedBarChart
+                data={topLanguages}
+                labelWidth={130}
+                note={ATTRIBUTED_LOC_NOTE}
+                emptyMessage="No attributed language LoC data for this range."
+              />
+            </ChartCard>
+          </div>
+
+          <div className="grid-compact">
+            <ChartCard title="Top 5 custom agents">
+              <RankedBarChart
+                data={customAgents.top}
+                measure="interactionCount"
+                label="Interactions"
+                emptyMessage="No custom agent usage recorded for this range."
+              />
+            </ChartCard>
+            <ChartCard title="Top 5 MCP servers">
+              <RankedBarChart
+                data={mcps.top}
+                measure="interactionCount"
+                label="Interactions"
+                emptyMessage="No MCP server usage recorded for this range."
+              />
+            </ChartCard>
+            <ChartCard title="Top 5 skills">
+              <RankedBarChart
+                data={skills.top}
+                measure="interactionCount"
+                label="Interactions"
+                emptyMessage="No skill usage recorded for this range."
+              />
+            </ChartCard>
+            <ChartCard title="Top 5 plugins">
+              <RankedBarChart
+                data={plugins.top}
+                measure="interactionCount"
+                label="Interactions"
+                emptyMessage="No plugin usage recorded for this range."
+              />
+            </ChartCard>
+            <ChartCard title="Top 5 slash commands">
+              <RankedBarChart
+                data={slashCommands.top}
+                measure="interactionCount"
+                label="Interactions"
+                emptyMessage="No slash command usage recorded for this range."
+              />
+            </ChartCard>
+          </div>
+
+          <RankingDisclosure title="All skills" items={skills.all} />
+          <RankingDisclosure title="All MCP servers" items={mcps.all} />
+          <RankingDisclosure title="All agents" items={customAgents.all} />
+          <RankingDisclosure title="All slash commands" items={slashCommands.all} />
+          <RankingDisclosure title="All plugins" items={plugins.all} />
         </>
       )}
     </>

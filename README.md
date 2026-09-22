@@ -9,14 +9,22 @@ Deployed to GitHub Pages — see the repository's Pages URL.
 
 Drop in a Copilot usage metrics export and get:
 
-- **KPI row** — active users (and how many never were), active user-days, interactions, code
-  generations, acceptance rate, lines added and deleted, AI credits, date range
-- **Active users per day** — how many people actually used Copilot each day
-- **Interactions per day** — user-initiated volume, on its own scale
-- **Acceptance rate per day** — accepted suggestions as a share of generated, against the
-  period average
+- **Interactions per day, by feature** — the top 7 features stacked, remainder folded into Other
+- **Code generations and acceptances per day**
+- **Daily users by surface** — IDE agent mode, IDE chat, the CLI, and Copilot cloud/coding agent
+  (one combined line — GitHub documents the cloud and coding agent flags as the same signal)
+- **AI credits per day**
+- **LoC added/deleted per feature**
+- **Highest AI adoption phase per user** and **average AI credits per distinct user seen**
+- **Anonymous per-user AI credit distribution** — an unlabeled dot plot with mean and
+  population-standard-deviation markers
+- **Daily lines of code per user** — mean and population-standard-deviation bands for
+  additions/deletions
+- **Top 5 models and languages by LoC changed**
+- **Top 5 custom agents, MCP servers, skills, plugins, and slash commands**, each followed by a
+  complete ranked disclosure at the end of the report
 
-Filter by date range, then hit **Export PDF**.
+Filter by date range and organization, then hit **Export PDF**.
 
 ## Privacy
 

@@ -118,17 +118,13 @@
     page-break-inside: avoid;
   }
 
-  /* One chart per row reads better on a portrait page than two squeezed columns. */
-  .grid-2 {
+  /* One chart per row reads better on a portrait page than squeezed columns. */
+  .grid-2,
+  .grid-compact {
     grid-template-columns: 1fr;
     gap: 12px;
   }
 
-  /* Four across fills two clean rows for the eight-tile layout. */
-  .kpis {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-  }
   .kpi__value { font-size: 20px; }
 
   a { text-decoration: none; color: inherit; }

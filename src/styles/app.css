@@ -226,17 +226,6 @@ code {
 .alert--warn { border-left-color: var(--warning); }
 
 /* ---------- KPI ---------- */
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-@media (max-width: 900px) {
-  .kpis { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 520px) {
-  .kpis { grid-template-columns: 1fr; }
-}
 .kpi {
   background: var(--surface-1);
   border: 1px solid var(--border);
@@ -258,7 +247,7 @@ code {
 }
 .kpi__hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* A single focused stat embedded in a chart card, not part of the KpiRow grid. */
+/* A single focused stat tile, standalone rather than part of a KPI grid. */
 .kpi--solo { max-width: 280px; }
 
 /* ---------- Filters ---------- */
@@ -300,6 +289,15 @@ code {
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+/* Narrower slots for compact ranked-bar cards — enough for a label column and a
+   handful of bars, so more than two fit per row on desktop. */
+.grid-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   align-items: start;
   gap: 16px;
 }

@@ -2,9 +2,8 @@ import { fmtCompact } from '../../format'
 
 /**
  * Required interpretation copy: this is the one requested summary number —
- * total AI credits divided by distinct users seen in range — not the
- * dashboard's unrelated active-user KPI row, so it gets its own formula
- * caption rather than sharing the KpiRow's generic hints.
+ * total AI credits divided by distinct users seen in range — so it gets its
+ * own formula caption rather than a generic hint.
  */
 export const AVERAGE_AI_CREDITS_NOTE = 'Total AI credits ÷ distinct users seen in the selected range.'
 
@@ -14,10 +13,9 @@ interface Props {
 }
 
 /**
- * A single focused summary tile, not a row: `KpiRow` is built for a grid of
- * unrelated counters, and this is one deliberately isolated average. Reuses
- * the `.kpi` card token so it still looks native beside the rest of the
- * dashboard.
+ * A single focused summary tile, not a row of unrelated counters: this is one
+ * deliberately isolated average. Reuses the `.kpi` card token so it still
+ * looks native beside the rest of the dashboard.
  */
 export function AverageAiCreditsStat({ value }: Props) {
   return (

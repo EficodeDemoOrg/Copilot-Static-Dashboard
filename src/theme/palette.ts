@@ -70,6 +70,15 @@ export const measureColor = {
    * already carries a meaning elsewhere on the dashboard.
    */
   interactionCount: series[6],
+  /**
+   * AI credits are a consumption measure, not a person/volume/quality count,
+   * so they get their own slot rather than borrowing a hue that already
+   * means something else on the dashboard. Slot 4 (series-4) is reserved for
+   * contexts with the label "relief" (2.69:1, see app.css) — these charts
+   * draw an unlabeled stroke/fill, so slot 5 (magenta, ≥3.41:1 in both
+   * modes) is used instead, as it otherwise goes unused.
+   */
+  aiCredits: series[4],
 } as const
 
 export type Measure = keyof typeof measureColor

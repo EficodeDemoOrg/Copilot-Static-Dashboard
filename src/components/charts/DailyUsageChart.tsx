@@ -6,7 +6,7 @@ import { makeTooltip } from './ChartTooltip'
 import { ChartFrame } from './ChartFrame'
 
 /** The countable measures on a DayPoint — acceptanceRate has its own chart. */
-type Measure = 'activeUsers' | 'interactions' | 'generations' | 'acceptances'
+type Measure = 'activeUsers' | 'interactions' | 'generations' | 'acceptances' | 'aiCredits'
 
 interface Props {
   data: DayPoint[]

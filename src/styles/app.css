@@ -258,6 +258,9 @@ code {
 }
 .kpi__hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
+/* A single focused stat embedded in a chart card, not part of the KpiRow grid. */
+.kpi--solo { max-width: 280px; }
+
 /* ---------- Filters ---------- */
 .filters {
   display: flex;

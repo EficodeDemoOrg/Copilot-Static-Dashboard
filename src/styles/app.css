@@ -247,9 +247,6 @@ code {
 }
 .kpi__hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* A single focused stat tile, standalone rather than part of a KPI grid. */
-.kpi--solo { max-width: 280px; }
-
 /* ---------- Filters ---------- */
 .filters {
   display: flex;

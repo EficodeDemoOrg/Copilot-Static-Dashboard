@@ -5,15 +5,6 @@ import { chrome, ink, measureColor, otherFill, tickStyle } from '../../theme/pal
 import { fmtNumber, fmtPercent } from '../../format'
 import { ChartFrame } from './ChartFrame'
 
-/**
- * Required interpretation copy: the aggregation already reduced every user to
- * their single highest phase in range, so this chart can never double-count a
- * user across two bars — worth stating, since a reader could otherwise assume
- * this is a count of phase *records*, not of people.
- */
-export const ADOPTION_PHASE_NOTE =
-  'Each user is counted once, at the highest adoption phase they reached in the selected range.'
-
 interface Props {
   data: AdoptionPhaseTotal[]
 }
@@ -59,34 +50,31 @@ export function AdoptionPhaseChart({ data }: Props) {
   const rows: Row[] = data.map((d) => ({ ...d, share: total > 0 ? (d.users / total) * 100 : 0 }))
 
   return (
-    <>
-      <ChartFrame height={HEIGHT}>
-        <BarChart data={rows} margin={{ top: 20, right: 16, bottom: 0, left: 0 }} barCategoryGap={16}>
-          <CartesianGrid stroke={chrome.grid} vertical={false} />
-          <XAxis dataKey="label" tick={tickStyle} tickLine={false} axisLine={{ stroke: chrome.axis }} interval={0} />
-          <YAxis
-            tickFormatter={fmtNumber}
-            tick={tickStyle}
-            tickLine={false}
-            axisLine={false}
-            width={40}
-            allowDecimals={false}
+    <ChartFrame height={HEIGHT}>
+      <BarChart data={rows} margin={{ top: 20, right: 16, bottom: 0, left: 0 }} barCategoryGap={16}>
+        <CartesianGrid stroke={chrome.grid} vertical={false} />
+        <XAxis dataKey="label" tick={tickStyle} tickLine={false} axisLine={{ stroke: chrome.axis }} interval={0} />
+        <YAxis
+          tickFormatter={fmtNumber}
+          tick={tickStyle}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+          allowDecimals={false}
+        />
+        <Tooltip content={PhaseTooltip} cursor={{ fill: 'var(--surface-2)' }} />
+        <Bar dataKey="users" name="Users" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+          {rows.map((r) => (
+            <Cell key={r.label} fill={r.phaseNumber === undefined ? otherFill : measureColor.activeUsers} />
+          ))}
+          <LabelList
+            dataKey="users"
+            position="top"
+            formatter={(value) => fmtNumber(Number(value))}
+            style={{ fill: ink.secondary, fontSize: 12 }}
           />
-          <Tooltip content={PhaseTooltip} cursor={{ fill: 'var(--surface-2)' }} />
-          <Bar dataKey="users" name="Users" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-            {rows.map((r) => (
-              <Cell key={r.label} fill={r.phaseNumber === undefined ? otherFill : measureColor.activeUsers} />
-            ))}
-            <LabelList
-              dataKey="users"
-              position="top"
-              formatter={(value) => fmtNumber(Number(value))}
-              style={{ fill: ink.secondary, fontSize: 12 }}
-            />
-          </Bar>
-        </BarChart>
-      </ChartFrame>
-      <p className="card__note">{ADOPTION_PHASE_NOTE}</p>
-    </>
+        </Bar>
+      </BarChart>
+    </ChartFrame>
   )
 }

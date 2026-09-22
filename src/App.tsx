@@ -4,8 +4,10 @@ import type { Dataset } from './data/types'
 import {
   adoptionPhaseDistribution,
   anonymousAiCreditsPerUser,
+  anonymousDailyAiCreditsPerUser,
   applyFilters,
   averageAiCredits,
+  averageDailyAiCredits,
   byDay,
   customAgentRanking,
   dailyLocDeviation,
@@ -36,7 +38,7 @@ import { AiCreditsChart } from './components/charts/AiCreditsChart'
 import { ATTRIBUTED_LOC_NOTE, LocGroupedBarChart } from './components/charts/LocGroupedBarChart'
 import { AdoptionPhaseChart } from './components/charts/AdoptionPhaseChart'
 import { AverageAiCreditsStat } from './components/charts/AverageAiCreditsStat'
-import { AnonymousCreditDotPlot } from './components/charts/AnonymousCreditDotPlot'
+import { AnonymousCreditDotPlot, DAILY_CREDIT_DOT_PLOT_NOTE } from './components/charts/AnonymousCreditDotPlot'
 import { LocDeviationChart } from './components/charts/LocDeviationChart'
 import { RankedBarChart } from './components/charts/RankedBarChart'
 
@@ -176,7 +178,9 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
   const featureLoc = useMemo(() => locByFeature(filtered), [filtered])
   const adoptionPhases = useMemo(() => adoptionPhaseDistribution(filtered), [filtered])
   const avgCredits = useMemo(() => averageAiCredits(filtered), [filtered])
+  const avgDailyCredits = useMemo(() => averageDailyAiCredits(daily), [daily])
   const creditDistribution = useMemo(() => anonymousAiCreditsPerUser(filtered), [filtered])
+  const dailyCreditDistribution = useMemo(() => anonymousDailyAiCreditsPerUser(filtered), [filtered])
   const topModels = useMemo(() => topModelLoc(filtered), [filtered])
   const topLanguages = useMemo(() => topLanguageLoc(filtered), [filtered])
   const customAgents = useMemo(() => customAgentRanking(filtered), [filtered])
@@ -235,7 +239,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
             <SurfaceUsageChart data={surfaceDaily} />
           </ChartCard>
 
-          <ChartCard title="AI credits per day">
+          <ChartCard title="Daily AI Credits Consumed">
             <AiCreditsChart data={daily} />
           </ChartCard>
 
@@ -247,15 +251,34 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
             />
           </ChartCard>
 
-          <div className="grid-2">
-            <ChartCard title="Highest AI adoption phase per user">
-              <AdoptionPhaseChart data={adoptionPhases} />
-            </ChartCard>
+          <ChartCard title="AI Adoption per User">
+            <AdoptionPhaseChart data={adoptionPhases} />
+          </ChartCard>
+
+          <div className="grid-compact">
             <AverageAiCreditsStat value={avgCredits} />
+            <AverageAiCreditsStat
+              value={avgDailyCredits.perUser}
+              label="Average daily AI credits used per user"
+              note="Each day's AI credits ÷ that day's active users, averaged across days with at least one active user."
+            />
+            <AverageAiCreditsStat
+              value={avgDailyCredits.total}
+              label="Average daily AI credits used in total"
+              note="Total AI credits across all users, averaged per day over the selected range."
+            />
           </div>
 
-          <ChartCard title="Anonymous per-user AI credit distribution">
+          <ChartCard title="AI Credits Consumed per User">
             <AnonymousCreditDotPlot data={creditDistribution} />
+          </ChartCard>
+
+          <ChartCard title="Daily AI Credits Consumed per User (Mean)">
+            <AnonymousCreditDotPlot
+              data={dailyCreditDistribution}
+              axisLabel="Daily AI credits (mean)"
+              note={DAILY_CREDIT_DOT_PLOT_NOTE}
+            />
           </ChartCard>
 
           <ChartCard title="Daily lines of code per user, mean and deviation">

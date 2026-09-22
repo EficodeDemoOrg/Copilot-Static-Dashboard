@@ -491,6 +491,29 @@ export function averageAiCredits(records: UserDay[]): number | null {
   return users.size > 0 ? credits / users.size : null
 }
 
+export interface AverageDailyAiCredits {
+  /** Mean of each day's total AI credits across every day in range, including zero-activity days. */
+  total: number | null
+  /** Mean of each day's (AI credits / that day's active users), skipping days with no active users. */
+  perUser: number | null
+}
+
+/**
+ * Daily AI credit averages, computed from the same zero-filled `DayPoint[]`
+ * the daily chart uses so both stay in lockstep with the report window.
+ * `total` folds in zero-activity days (a fair "typical day" figure); `perUser`
+ * only counts days with at least one active user, since dividing by zero
+ * active users on an empty day is meaningless rather than zero.
+ */
+export function averageDailyAiCredits(daily: DayPoint[]): AverageDailyAiCredits {
+  if (daily.length === 0) return { total: null, perUser: null }
+  const daysWithUsers = daily.filter((d) => d.activeUsers > 0)
+  return {
+    total: mean(daily.map((d) => d.aiCredits)),
+    perUser: daysWithUsers.length > 0 ? mean(daysWithUsers.map((d) => d.aiCredits / d.activeUsers)) : null,
+  }
+}
+
 /**
  * One anonymous chart point: an ordinal position and a credit total, with no
  * user id or login attached. Points are ordered by credit total, descending,
@@ -520,6 +543,32 @@ export function anonymousAiCreditsPerUser(records: UserDay[]): CreditDistributio
     points: totals.map((credits, index) => ({ index, credits })),
     mean: mean(totals),
     stdDev: popStdDev(totals),
+  }
+}
+
+/**
+ * Same shape as {@link anonymousAiCreditsPerUser}, but each point is one
+ * user's mean daily AI credits (their credit total \u00f7 their own number of
+ * day-records) rather than their period total — a "typical day" figure per
+ * user, so the distribution isn't skewed by users who simply have more days
+ * of data in range.
+ */
+export function anonymousDailyAiCreditsPerUser(records: UserDay[]): CreditDistribution {
+  const creditsByUser = new Map<number, number>()
+  const daysByUser = new Map<number, number>()
+  for (const r of records) {
+    creditsByUser.set(r.userId, (creditsByUser.get(r.userId) ?? 0) + r.aiCredits)
+    daysByUser.set(r.userId, (daysByUser.get(r.userId) ?? 0) + 1)
+  }
+  const dailyMeans = [...creditsByUser.entries()]
+    .map(([id, total]) => [id, total / (daysByUser.get(id) ?? 1)] as const)
+    .sort(([idA, a], [idB, b]) => b - a || idA - idB)
+    .map(([, credits]) => credits)
+
+  return {
+    points: dailyMeans.map((credits, index) => ({ index, credits })),
+    mean: mean(dailyMeans),
+    stdDev: popStdDev(dailyMeans),
   }
 }
 

@@ -74,7 +74,7 @@ export function UploadPanel({ onFiles, onSample, error, busy }: Props) {
 
       <p className="upload__columns">
         Expects GitHub's Copilot usage metrics export — newline-delimited JSON, one record per user per
-        day, with at least <code>day</code> and <code>user_login</code>. Download it from your
+        day, with at least <code>day</code> and <code>user_id</code>. Download it from your
         enterprise or organization Copilot settings.
       </p>
     </div>

@@ -54,6 +54,15 @@ export const measureColor = {
   generations: series[1],
   acceptances: series[2],
   acceptanceRate: series[2],
+  /**
+   * LoC added/deleted borrow the familiar diff convention (green add, red
+   * remove) rather than the cornflower/mango/violet trio above: added and
+   * deleted are two sides of one measure shown together on every LoC chart, so
+   * they need to read as a pair, not slot into the per-person/per-volume
+   * mapping. Both clear 3:1 on light and dark chart surfaces (slots 6 and 8).
+   */
+  locAdded: series[5],
+  locDeleted: series[7],
 } as const
 
 export type Measure = keyof typeof measureColor

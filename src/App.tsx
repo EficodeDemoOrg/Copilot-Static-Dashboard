@@ -1,15 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { parseFiles, parseNdjsonText, ReportFormatError } from './data/parseNdjson'
 import type { Dataset } from './data/types'
-import {
-  applyFilters,
-  byDay,
-  byUser,
-  dateRange,
-  distinctOrgs,
-  totals,
-  type Filters,
-} from './data/metrics'
+import { applyFilters, byDay, dateRange, distinctOrgs, totals, type Filters } from './data/metrics'
 import { SAMPLE_FILE_NAME, SAMPLE_NDJSON } from './data/sample'
 import { fmtCompact, fmtDayLong, fmtNumber, fmtPercent } from './format'
 import { UploadPanel } from './components/UploadPanel'
@@ -20,9 +12,6 @@ import { KpiRow, type Kpi } from './components/KpiRow'
 import { ChartCard } from './components/ChartCard'
 import { DailyUsageChart } from './components/charts/DailyUsageChart'
 import { AcceptanceRateChart } from './components/charts/AcceptanceRateChart'
-import { RankedBarChart } from './components/charts/RankedBarChart'
-
-const TOP_USERS = 15
 
 /** Stated wherever an "active" count appears — 43% of records fail this test. */
 const ACTIVE_RULE = 'A user counts as active on a day with at least one interaction or code generation.'
@@ -148,9 +137,6 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
     const hi = filters.end && filters.end < (bounds?.end ?? '') ? filters.end : bounds?.end
     return byDay(filtered, lo && hi ? { start: lo, end: hi } : undefined)
   }, [filtered, filters.start, filters.end, bounds])
-  const users = useMemo(() => byUser(filtered), [filtered])
-  const topUsers = useMemo(() => users.slice(0, TOP_USERS), [users])
-
   const kpis: Kpi[] = [
     {
       label: 'Active users',
@@ -236,18 +222,6 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
             }. Days with no generations are left as a gap, not plotted as zero.`}
           >
             <AcceptanceRateChart data={daily} average={t.acceptanceRate} />
-          </ChartCard>
-
-          <ChartCard
-            title={`Top ${TOP_USERS} users by interactions`}
-            subtitle="Who drives usage."
-            note={
-              users.length > TOP_USERS
-                ? `${users.length - TOP_USERS} further user${users.length - TOP_USERS === 1 ? '' : 's'} not shown.`
-                : undefined
-            }
-          >
-            <RankedBarChart data={topUsers} measure="interactions" label="Interactions" labelWidth={130} />
           </ChartCard>
         </>
       )}

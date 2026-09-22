@@ -15,7 +15,6 @@ Drop in a Copilot usage metrics export and get:
 - **Interactions per day** — user-initiated volume, on its own scale
 - **Acceptance rate per day** — accepted suggestions as a share of generated, against the
   period average
-- **Top 15 users by interactions** — who drives usage
 
 Filter by date range, then hit **Export PDF**.
 
@@ -31,6 +30,9 @@ This is the point of the tool, so it is enforced rather than promised:
   dataset is bundled into the JS rather than fetched, and parsing runs on the main thread rather
   than in a blob worker, precisely so that policy can stay this strict.
 - No analytics, no fonts or scripts from a CDN.
+- The normalized data model never carries a GitHub username/login. `user_id` (numeric, stable) is
+  the only identity used, for de-duplication and distinct-user counts — see `UserDay` in
+  `src/data/types.ts`.
 
 **`tmp_files/` is gitignored** — real exports contain real GitHub usernames and must never be
 committed. The bundled sample is synthetic, with invented logins.
@@ -38,8 +40,8 @@ committed. The bundled sample is synthetic, with invented logins.
 ## Supported input
 
 GitHub's **Copilot usage metrics export**: newline-delimited JSON (`.ndjson`), one record per
-user per day. Only `day` and `user_login` are required; every other field is optional and
-missing values degrade to zero rather than `NaN`.
+user per day. Only `day` and `user_id` are required; every other field is optional and
+missing values degrade to zero (or `false`, for the `used_*` flags) rather than `NaN`.
 
 Exports arrive split into several `part-…` files. Select them all at once — they are merged and
 de-duplicated on `user_id + day`, and a note reports how many duplicates were dropped. A line
@@ -104,10 +106,11 @@ touch the charts:
 
 - **A new field from the same export**: add it to `UserDay` in `src/data/types.ts` and map it in
   `toUserDay()` in `src/data/adapters/usageMetrics.ts`. That function is deliberately the only
-  place raw records are read. Note that the nested breakdown arrays (`totals_by_language_feature`
-  and friends) are dropped at parse time — at ~3.2 KB of JSON per record, a 1000-user month is
-  ~91 MB, and keeping only the scalars is what makes that tractable. Aggregate what you need
-  inside `toUserDay()` rather than retaining the raw arrays.
+  place raw records are read. The nested breakdown arrays (`totals_by_feature`,
+  `totals_by_language_feature`, and friends) are normalized down to compact `{ name, ...measures }`
+  arrays at parse time rather than retained whole — at ~3.2 KB of raw JSON per record, a 1000-user
+  month is ~91 MB, and keeping only the names and chartable measures is what makes that tractable.
+  No login value is ever read into `UserDay` — `userId` (numeric, stable) is the only identity.
 - **A new export format**: write `src/data/adapters/<name>.ts` exporting an `Adapter` and
   register it in `src/data/adapters/index.ts`. `detectAdapter()` matches on the shape of the
   first parsed record.

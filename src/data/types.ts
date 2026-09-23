@@ -90,6 +90,32 @@ export interface ReportWindow {
   end: string
 }
 
+export type FileScope = 'enterprise' | 'organization'
+
+/**
+ * Optional display names keyed separately by raw enterprise and organization
+ * IDs. Raw IDs remain the canonical data identity everywhere else.
+ */
+export interface EntityAliases {
+  enterprises: ReadonlyMap<string, string>
+  organizations: ReadonlyMap<string, string>
+}
+
+/** The complete result of validating one uploaded NDJSON file. */
+export interface FileValidationResult {
+  fileName: string
+  valid: boolean
+  scope?: FileScope
+  recordCount: number
+  enterpriseIds: string[]
+  organizationIds: string[]
+  issues: string[]
+  records: UserDay[]
+  reportWindow?: ReportWindow
+  adapterId?: string
+  adapterLabel?: string
+}
+
 export interface Adapter {
   id: string
   label: string
@@ -110,4 +136,5 @@ export interface Dataset {
   /** Union of the report windows seen across the uploaded files, when present. */
   reportWindow?: ReportWindow
   warnings: string[]
+  aliases: EntityAliases
 }

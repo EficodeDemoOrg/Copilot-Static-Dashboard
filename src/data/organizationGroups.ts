@@ -1,4 +1,5 @@
-import type { UserDay } from './types'
+import { entityDisplayName } from './entityAliases'
+import type { EntityAliases, UserDay } from './types'
 
 export interface OrganizationGroup {
   key: string
@@ -11,25 +12,36 @@ export function organizationGroupKey(enterpriseId?: string, organizationId?: str
   return JSON.stringify([enterpriseId ?? null, organizationId ?? null])
 }
 
-export function organizationGroupLabel(enterpriseId?: string, organizationId?: string): string {
-  const enterprise = enterpriseId ? `Enterprise ${enterpriseId}` : 'No enterprise'
-  const organization = organizationId ? `Organization ${organizationId}` : 'No organization'
+export function organizationGroupLabel(
+  enterpriseId?: string,
+  organizationId?: string,
+  aliases?: EntityAliases,
+): string {
+  const enterprise = enterpriseId
+    ? `Enterprise ${entityDisplayName('enterprise', enterpriseId, aliases)}`
+    : 'No enterprise'
+  const organization = organizationId
+    ? `Organization ${entityDisplayName('organization', organizationId, aliases)}`
+    : 'No organization'
   return `${enterprise} / ${organization}`
 }
 
-export function organizationGroupFor(record: UserDay): OrganizationGroup {
+export function organizationGroupFor(record: UserDay, aliases?: EntityAliases): OrganizationGroup {
   return {
     key: organizationGroupKey(record.enterpriseId, record.organizationId),
-    label: organizationGroupLabel(record.enterpriseId, record.organizationId),
+    label: organizationGroupLabel(record.enterpriseId, record.organizationId, aliases),
     enterpriseId: record.enterpriseId,
     organizationId: record.organizationId,
   }
 }
 
-export function distinctOrganizationGroups(records: UserDay[]): OrganizationGroup[] {
+export function distinctOrganizationGroups(
+  records: UserDay[],
+  aliases?: EntityAliases,
+): OrganizationGroup[] {
   const groups = new Map<string, OrganizationGroup>()
   for (const record of records) {
-    const group = organizationGroupFor(record)
+    const group = organizationGroupFor(record, aliases)
     groups.set(group.key, group)
   }
   return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label))

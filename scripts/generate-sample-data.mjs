@@ -33,8 +33,8 @@
  *  - Adoption phases that step up for some users partway through the window.
  *  - AI credit zeros, typical values, and a handful of outliers.
  *  - Per-user LoC scale variation, for visible daily standard-deviation bands.
- *  - Some records with omitted optional fields (`ai_adoption_phase`,
- *    `organization_id`/`enterprise_id`) and explicit empty breakdown arrays.
+ *  - Some records with omitted optional fields (`ai_adoption_phase`) and
+ *    explicit empty breakdown arrays.
  */
 
 // ---------------------------------------------------------------------------
@@ -274,8 +274,8 @@ function buildPersonas() {
     // A handful of users never carry adoption-phase data at all, exercising
     // the "Unknown" bucket in `adoptionPhaseDistribution`.
     const omitsAdoptionPhase = chance(0.08)
-    // A handful of users' records never include organization/enterprise ids.
-    const omitsOrgIds = chance(0.06)
+    // Preserve the generator's historical random sequence after making IDs required.
+    chance(0.06)
 
     return {
       userId,
@@ -301,7 +301,6 @@ function buildPersonas() {
       phaseChangeDayIndex,
       steppedPhaseNumber,
       omitsAdoptionPhase,
-      omitsOrgIds,
     }
   })
 }
@@ -475,10 +474,8 @@ function generateRecords() {
         used_copilot_cloud_agent: usedCloudAgentToday,
       }
 
-      if (!persona.omitsOrgIds) {
-        record.organization_id = persona.organizationGroup.organizationId
-        record.enterprise_id = persona.organizationGroup.enterpriseId
-      }
+      record.organization_id = persona.organizationGroup.organizationId
+      record.enterprise_id = persona.organizationGroup.enterpriseId
 
       const phase = adoptionPhaseFor(persona, dayIndex)
       if (phase) record.ai_adoption_phase = phase

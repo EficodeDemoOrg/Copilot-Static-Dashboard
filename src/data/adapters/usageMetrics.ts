@@ -30,8 +30,21 @@ const str = (v: unknown): string | undefined => {
 /** `day` is a bare YYYY-MM-DD, but tolerate a full ISO timestamp. */
 const day = (v: unknown): string | undefined => {
   const s = typeof v === 'string' ? v.trim() : ''
-  const m = /^(\d{4}-\d{2}-\d{2})/.exec(s)
-  return m ? m[1] : undefined
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(s)
+  if (!m) return undefined
+
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const date = Number(m[3])
+  const parsed = new Date(Date.UTC(year, month - 1, date))
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== date
+  ) {
+    return undefined
+  }
+  return `${m[1]}-${m[2]}-${m[3]}`
 }
 
 /**

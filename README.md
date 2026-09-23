@@ -1,15 +1,20 @@
 # Copilot Usage Dashboard
 
-A static, client-side dashboard for GitHub Copilot usage metrics exports. Upload the export,
-read the charts, export a PDF. Nothing is uploaded and nothing is stored.
+A static, client-side dashboard for GitHub Copilot usage metrics exports. Upload and validate
+the export, review its scope and IDs, optionally provide display names, then create the charts
+and export a PDF. Nothing is uploaded and nothing is stored.
 
 Deployed to GitHub Pages — see the repository's Pages URL.
 
 ## What it does
 
-Drop in one or more Copilot usage metrics exports and get enterprise/organization comparisons,
-four aggregate daily graphs, a set of feature/adoption/credit/LoC visualizations, top-five
-model/language/customization rankings, and five complete end-of-report disclosures.
+Drop in one or more Copilot usage metrics exports. Each file gets its own validation card so
+syntax, scope, record count, and unique enterprise/organization IDs can be reviewed before
+opening the dashboard. Additional files can be added, invalid files can be removed or ignored,
+and optional display names can be assigned to IDs. The resulting dashboard provides
+enterprise/organization comparisons, four aggregate daily graphs, a set of
+feature/adoption/credit/LoC visualizations, top-five model/language/customization rankings, and
+five complete end-of-report disclosures.
 
 **Enterprise / organization comparisons**
 
@@ -85,26 +90,40 @@ committed. The bundled sample is synthetic, with invented logins.
 ## Supported input
 
 GitHub's **Copilot usage metrics export**: newline-delimited JSON (`.ndjson`), one record per
-user per day. Only `day` and `user_id` are required; every other field is optional. Missing
-numeric values generally degrade to zero rather than `NaN`, but AI-credit comparisons preserve
-the difference between an absent `ai_credits_used` field and an explicitly reported zero.
+user per day. Every non-empty line is parsed and validated; the extension alone is not trusted.
+Every record must have a valid `day`, numeric `user_id`, and non-empty `enterprise_id`.
 
-Exports arrive split into several `part-…` files. Select them all at once — they are merged and
-de-duplicated on `enterprise_id + organization_id + user_id + day`, so one user can remain
-represented in multiple organizations on the same day. A note reports how many duplicates were
-dropped. A line that fails to parse is counted and skipped rather than failing the whole upload.
+- An **organization export** has a non-empty `organization_id` on every record.
+- An **enterprise export** has no `organization_id` on any record.
+- Mixed `organization_id` presence, malformed JSON, an unrecognized record, or a missing
+  required value marks that file invalid. The file card identifies the problem and relevant
+  line numbers without displaying raw record values.
+
+Exports arrive split into several `part-…` files. New selections append to the review, and each
+part stays in its own validation card. The user explicitly continues when review is complete.
+Valid files are merged and invalid files are ignored, so one bad part does not prevent using the
+remaining valid parts. The merge de-duplicates on
+`enterprise_id + organization_id + user_id + day`, so one user can remain represented in
+multiple organizations on the same day. A dashboard note reports how many duplicate records
+were dropped.
+
+The review also provides a shared translation list for every unique enterprise and organization
+ID in the valid files. A non-empty value becomes that ID's display name throughout filters,
+comparisons, and printed reports. Empty or whitespace-only values keep the original ID. These
+aliases never alter the raw grouping or de-duplication keys, and two IDs given the same display
+name remain separate groups.
 
 Download yours from your enterprise or organization Copilot settings. There is a synthetic
-sample behind **Try with sample data**.
+sample behind **Add sample data**.
 
 Optional schema fields (breakdown arrays, `ai_adoption_phase`, the `used_*` flags, …) can be
 absent or empty on any record. Rather than a blank or a thrown error, each visualization that
 depends on one shows its own targeted empty state (e.g. "No attributed feature LoC data for this
 range.") explaining what specifically is missing.
 
-The bundled synthetic sample contains several invented enterprise/organization combinations,
-including records with missing IDs, so every comparison view can be evaluated without loading a
-real export.
+The bundled synthetic sample contains several invented enterprise/organization combinations, so
+the complete validation, naming, and comparison workflow can be evaluated without loading a real
+export.
 
 ## Metric definitions
 
@@ -220,7 +239,8 @@ touch the charts:
 
 ## Architecture notes
 
-- `src/data/` — types, adapters, NDJSON parsing, aggregation. No React.
+- `src/data/` — types, adapters, strict per-file NDJSON validation, display aliases, and
+  aggregation. No React.
 - `src/components/charts/` — one component per visualization, all Recharts (SVG, so PDFs are
   vector).
 - `src/styles/app.css` — the Eficode brand tokens, in three sets (light, dark, and print over in

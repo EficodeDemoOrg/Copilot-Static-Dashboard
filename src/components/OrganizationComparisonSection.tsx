@@ -187,7 +187,7 @@ export function OrganizationComparisonSection({ data }: Props) {
         />
       </ChartCard>
 
-      <div className="grid-compact">
+      <div className="comparison-credit-cards">
         <ChartCard
           title="Total AI credits by group"
           subtitle="Total reported AI credits in each group."

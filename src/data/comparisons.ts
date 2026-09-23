@@ -3,7 +3,7 @@ import {
   isActive,
 } from './metrics'
 import { organizationGroupFor } from './organizationGroups'
-import type { CustomizationTotal, UserDay } from './types'
+import type { CustomizationTotal, EntityAliases, UserDay } from './types'
 
 export const ADOPTION_BUCKETS = [
   'Phase 4',
@@ -102,10 +102,10 @@ interface GroupMetrics {
   dailyCreditsPerActiveUserDeviation: number | null
 }
 
-function groupRecords(records: UserDay[]): Group[] {
+function groupRecords(records: UserDay[], aliases?: EntityAliases): Group[] {
   const groups = new Map<string, Group>()
   for (const record of records) {
-    const identity = organizationGroupFor(record)
+    const identity = organizationGroupFor(record, aliases)
     let group = groups.get(identity.key)
     if (!group) {
       group = { key: identity.key, label: identity.label, records: [], users: new Set() }
@@ -367,9 +367,10 @@ function locRows(groups: Group[]): LocComparisonRow[] {
 
 export function compareOrganizationGroups(
   records: UserDay[],
+  aliases?: EntityAliases,
   featureLimit = 7,
 ): OrganizationComparisons {
-  const groups = groupRecords(records)
+  const groups = groupRecords(records, aliases)
   const groupMetrics: GroupMetrics[] = groups.map((group) => ({ group, ...creditMetrics(group) }))
   const features = featurePreferenceRows(groups, featureLimit)
 

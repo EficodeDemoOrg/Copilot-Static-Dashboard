@@ -1,6 +1,12 @@
-import { useCallback, useMemo, useState } from 'react'
-import { parseFiles, parseNdjsonText, ReportFormatError } from './data/parseNdjson'
-import type { Dataset } from './data/types'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  mergeValidatedFiles,
+  ReportFormatError,
+  validateFile,
+  validateNdjsonText,
+} from './data/parseNdjson'
+import { emptyEntityAliases, normalizeEntityAliases } from './data/entityAliases'
+import type { Dataset, EntityAliases, FileValidationResult } from './data/types'
 import {
   adoptionPhaseDistribution,
   anonymousAiCreditsPerUser,
@@ -26,7 +32,7 @@ import {
 } from './data/metrics'
 import { SAMPLE_FILE_NAME, SAMPLE_NDJSON } from './data/sample'
 import { compareOrganizationGroups } from './data/comparisons'
-import { UploadPanel } from './components/UploadPanel'
+import { UploadPanel, type UploadFileItem } from './components/UploadPanel'
 import { FilterBar } from './components/FilterBar'
 import { ReportHeader } from './components/ReportHeader'
 import { EficodeLogo } from './components/EficodeLogo'
@@ -49,11 +55,19 @@ interface Loaded {
   generatedAt: Date
 }
 
+function sortedIds(results: FileValidationResult[], key: 'enterpriseIds' | 'organizationIds') {
+  return [...new Set(results.filter((result) => result.valid).flatMap((result) => result[key]))].sort(
+    (a, b) => a.localeCompare(b),
+  )
+}
+
 export function App() {
   const [loaded, setLoaded] = useState<Loaded | undefined>()
+  const [reviewFiles, setReviewFiles] = useState<UploadFileItem[]>([])
+  const [aliases, setAliases] = useState<EntityAliases>(() => emptyEntityAliases())
   const [filters, setFilters] = useState<Filters>({})
   const [error, setError] = useState<string | undefined>()
-  const [busy, setBusy] = useState(false)
+  const nextFileId = useRef(0)
 
   const accept = useCallback((dataset: Dataset) => {
     setLoaded({ dataset, generatedAt: new Date() })
@@ -72,30 +86,95 @@ export function App() {
     )
   }, [])
 
-  const onFiles = useCallback(
-    async (files: File[]) => {
-      setBusy(true)
-      try {
-        accept(await parseFiles(files))
-      } catch (e) {
-        fail(e)
-      } finally {
-        setBusy(false)
-      }
-    },
-    [accept, fail],
+  const validatedResults = useMemo(
+    () =>
+      reviewFiles.flatMap((item) =>
+        item.status === 'validated' && item.result ? [item.result] : [],
+      ),
+    [reviewFiles],
   )
+  const enterpriseIds = useMemo(
+    () => sortedIds(validatedResults, 'enterpriseIds'),
+    [validatedResults],
+  )
+  const organizationIds = useMemo(
+    () => sortedIds(validatedResults, 'organizationIds'),
+    [validatedResults],
+  )
+  const busy = reviewFiles.some((item) => item.status === 'validating')
+
+  useEffect(() => {
+    setAliases((current) =>
+      normalizeEntityAliases(current, new Set(enterpriseIds), new Set(organizationIds)),
+    )
+  }, [enterpriseIds, organizationIds])
+
+  const onFiles = useCallback(async (files: File[]) => {
+    setError(undefined)
+    const pending = files.map((file) => {
+      const item: UploadFileItem = {
+        id: `upload-${++nextFileId.current}`,
+        fileName: file.name,
+        status: 'validating',
+      }
+      return { file, item }
+    })
+    setReviewFiles((current) => [...current, ...pending.map(({ item }) => item)])
+
+    for (const { file, item } of pending) {
+      const result = await validateFile(file)
+      setReviewFiles((current) =>
+        current.map((existing) =>
+          existing.id === item.id ? { ...existing, status: 'validated', result } : existing,
+        ),
+      )
+    }
+  }, [])
 
   const onSample = useCallback(() => {
+    setError(undefined)
+    const result = validateNdjsonText(SAMPLE_NDJSON, SAMPLE_FILE_NAME)
+    setReviewFiles((current) => [
+      ...current,
+      {
+        id: `upload-${++nextFileId.current}`,
+        fileName: SAMPLE_FILE_NAME,
+        status: 'validated',
+        result,
+      },
+    ])
+  }, [])
+
+  const removeReviewFile = useCallback((id: string) => {
+    setError(undefined)
+    setReviewFiles((current) => current.filter((item) => item.id !== id))
+  }, [])
+
+  const changeAlias = useCallback(
+    (type: 'enterprise' | 'organization', id: string, value: string) => {
+      setAliases((current) => {
+        const enterprises = new Map(current.enterprises)
+        const organizations = new Map(current.organizations)
+        const target = type === 'enterprise' ? enterprises : organizations
+        target.set(id, value)
+        return { enterprises, organizations }
+      })
+    },
+    [],
+  )
+
+  const continueToDashboard = useCallback(() => {
     try {
-      accept(parseNdjsonText(SAMPLE_NDJSON, SAMPLE_FILE_NAME))
+      accept(mergeValidatedFiles(validatedResults, aliases))
     } catch (e) {
       fail(e)
     }
-  }, [accept, fail])
+  }, [accept, aliases, fail, validatedResults])
 
   const clear = useCallback(() => {
     setLoaded(undefined)
+    setReviewFiles([])
+    setAliases(emptyEntityAliases())
     setFilters({})
     setError(undefined)
   }, [])
@@ -110,7 +189,9 @@ export function App() {
             <p className="appbar__sub">
               {loaded
                 ? `${loaded.dataset.fileNames.length === 1 ? loaded.dataset.fileNames[0] : `${loaded.dataset.fileNames.length} files`} · ${loaded.dataset.records.length.toLocaleString()} user-days`
-                : 'Upload a GitHub Copilot usage metrics export — it never leaves your browser.'}
+                : reviewFiles.length > 0
+                  ? `${reviewFiles.length.toLocaleString()} ${reviewFiles.length === 1 ? 'file' : 'files'} in upload review`
+                  : 'Upload a GitHub Copilot usage metrics export — it never leaves your browser.'}
             </p>
           </div>
         </div>
@@ -134,7 +215,19 @@ export function App() {
           onFilters={setFilters}
         />
       ) : (
-        <UploadPanel onFiles={onFiles} onSample={onSample} error={error} busy={busy} />
+        <UploadPanel
+          onFiles={onFiles}
+          onSample={onSample}
+          onRemove={removeReviewFile}
+          onAliasChange={changeAlias}
+          onContinue={continueToDashboard}
+          files={reviewFiles}
+          aliases={aliases}
+          enterpriseIds={enterpriseIds}
+          organizationIds={organizationIds}
+          error={error}
+          busy={busy}
+        />
       )}
     </div>
   )
@@ -154,7 +247,10 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
   // not merely the days that happened to see activity.
   const observed = useMemo(() => dateRange(records), [records])
   const bounds = reportWindow ?? observed
-  const organizationGroups = useMemo(() => distinctOrganizationGroups(records), [records])
+  const organizationGroups = useMemo(
+    () => distinctOrganizationGroups(records, dataset.aliases),
+    [dataset.aliases, records],
+  )
 
   const filtered = useMemo(() => applyFilters(records, filters), [records, filters])
 
@@ -190,7 +286,10 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
   const skills = useMemo(() => skillRanking(filtered), [filtered])
   const plugins = useMemo(() => pluginRanking(filtered), [filtered])
   const slashCommands = useMemo(() => slashCommandRanking(filtered), [filtered])
-  const comparisons = useMemo(() => compareOrganizationGroups(filtered), [filtered])
+  const comparisons = useMemo(
+    () => compareOrganizationGroups(filtered, dataset.aliases),
+    [dataset.aliases, filtered],
+  )
 
   if (!bounds) return <p className="empty">No dated records in this export.</p>
 

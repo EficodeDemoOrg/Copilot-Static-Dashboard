@@ -1,6 +1,4 @@
-import type { Filters } from '../data/metrics'
 import { fmtDayLong } from '../format'
-import type { OrganizationGroup } from '../data/organizationGroups'
 import type { ReportWindow } from '../data/types'
 import { EficodeLogo } from './EficodeLogo'
 
@@ -9,8 +7,6 @@ interface Props {
   adapterLabel: string
   reportWindow?: ReportWindow
   range?: { start: string; end: string }
-  filters: Filters
-  organizationGroups: OrganizationGroup[]
   /** Frozen at load time so re-renders don't churn the printed timestamp. */
   generatedAt: Date
 }
@@ -27,8 +23,6 @@ export function ReportHeader({
   adapterLabel,
   reportWindow,
   range,
-  filters,
-  organizationGroups,
   generatedAt,
 }: Props) {
   const source =
@@ -41,9 +35,6 @@ export function ReportHeader({
     adapterLabel,
     reportWindow ? `Report window ${fmtDayLong(reportWindow.start)} – ${fmtDayLong(reportWindow.end)}` : undefined,
     range ? `Showing ${fmtDayLong(range.start)} – ${fmtDayLong(range.end)}` : undefined,
-    filters.organizationGroup
-      ? organizationGroups.find((group) => group.key === filters.organizationGroup)?.label
-      : undefined,
   ].filter(Boolean)
 
   return (

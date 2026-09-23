@@ -1,5 +1,5 @@
 import type { CustomizationTotal, FeatureTotal, UserDay } from './types'
-import { distinctOrganizationGroups, organizationGroupKey } from './organizationGroups'
+import { distinctOrganizationGroups } from './organizationGroups'
 
 /**
  * Pure aggregations over already-filtered records. No React, no formatting —
@@ -645,19 +645,12 @@ export { distinctOrganizationGroups }
 export interface Filters {
   start?: string
   end?: string
-  organizationGroup?: string
 }
 
 export function applyFilters(records: UserDay[], f: Filters): UserDay[] {
   return records.filter((r) => {
     if (f.start && r.day < f.start) return false
     if (f.end && r.day > f.end) return false
-    if (
-      f.organizationGroup &&
-      organizationGroupKey(r.enterpriseId, r.organizationId) !== f.organizationGroup
-    ) {
-      return false
-    }
     return true
   })
 }

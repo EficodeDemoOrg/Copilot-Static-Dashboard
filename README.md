@@ -14,7 +14,9 @@ opening the dashboard. Additional files can be added, invalid files can be remov
 and optional display names can be assigned to IDs. The resulting dashboard provides
 enterprise/organization comparisons, four aggregate daily graphs, a set of
 feature/adoption/credit/LoC visualizations, top-five model/language/customization rankings, and
-five complete end-of-report disclosures.
+five complete end-of-report disclosures. When multiple files are merged or multiple
+enterprise/organization combinations are present, a collapsed appendix repeats every
+non-comparison visual for each unique combination behind dynamic tabs.
 
 **Enterprise / organization comparisons**
 
@@ -63,7 +65,19 @@ Each customization ranking is followed by its own complete ranked list (all skil
 servers, all agents, all slash commands, all plugins) in a collapsible section that is always
 expanded in the printed/exported PDF, regardless of its on-screen state.
 
-Filter by date range and exact enterprise/organization combination, then hit **Export PDF**.
+**Per-combination appendix**
+
+The aggregate report and comparison tables remain unchanged. At the end of the report, the
+appendix provides one tab per unique enterprise ID + organization ID pair across all merged
+files. It starts collapsed, repeats the charts, KPI cards, top-five rankings, and complete
+disclosures for the selected pair, and keeps empty pairs visible when the chosen dates contain
+no records for them. Date filters apply to both the aggregate report and every appendix tab.
+
+PDF export ignores the appendix's collapsed and selected-tab state: every combination is
+included, each starts on a new page, and each page has a header naming the enterprise and
+organization plus the selected date range.
+
+Filter by date range, then hit **Export PDF**.
 
 ## Privacy
 
@@ -105,7 +119,8 @@ Valid files are merged and invalid files are ignored, so one bad part does not p
 remaining valid parts. The merge de-duplicates on
 `enterprise_id + organization_id + user_id + day`, so one user can remain represented in
 multiple organizations on the same day. A dashboard note reports how many duplicate records
-were dropped.
+were dropped. Per-combination tabs are derived after this merge, so repeated parts for the same
+enterprise/organization pair contribute to one tab rather than creating file-specific tabs.
 
 The review also provides a shared translation list for every unique enterprise and organization
 ID in the valid files. A non-empty value becomes that ID's display name throughout filters,
@@ -242,7 +257,8 @@ touch the charts:
 - `src/data/` — types, adapters, strict per-file NDJSON validation, display aliases, and
   aggregation. No React.
 - `src/components/charts/` — one component per visualization, all Recharts (SVG, so PDFs are
-  vector).
+  vector). `UsageVisuals` composes the complete non-comparison stack for both the aggregate
+  report and each per-combination tab.
 - `src/styles/app.css` — the Eficode brand tokens, in three sets (light, dark, and print over in
   `print.css`). Brand yellow `#ffd100` is the **UI accent only** — buttons, active states, the
   printed report rule. It cannot carry data: it sits above the categorical lightness band, and

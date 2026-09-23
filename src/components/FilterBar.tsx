@@ -1,17 +1,15 @@
 import type { Filters } from '../data/metrics'
-import type { OrganizationGroup } from '../data/organizationGroups'
 
 interface Props {
   filters: Filters
   onChange: (next: Filters) => void
   /** Full extent of the loaded data — used as the input bounds and the reset target. */
   bounds: { start: string; end: string }
-  organizationGroups: OrganizationGroup[]
   shownRecords: number
   totalRecords: number
 }
 
-export function FilterBar({ filters, onChange, bounds, organizationGroups, shownRecords, totalRecords }: Props) {
+export function FilterBar({ filters, onChange, bounds, shownRecords, totalRecords }: Props) {
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch })
 
   return (
@@ -37,23 +35,6 @@ export function FilterBar({ filters, onChange, bounds, organizationGroups, shown
           onChange={(e) => set({ end: e.target.value || undefined })}
         />
       </label>
-
-      {organizationGroups.length > 1 && (
-        <label className="field">
-          <span className="field__label">Enterprise / organization</span>
-          <select
-            value={filters.organizationGroup ?? ''}
-            onChange={(e) => set({ organizationGroup: e.target.value || undefined })}
-          >
-            <option value="">All enterprise / organization groups</option>
-            {organizationGroups.map((group) => (
-              <option key={group.key} value={group.key}>
-                {group.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
 
       <div className="filters__spacer" />
 

@@ -46,3 +46,16 @@ export function distinctOrganizationGroups(
   }
   return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label))
 }
+
+export function partitionRecordsByOrganizationGroup(
+  records: UserDay[],
+): ReadonlyMap<string, UserDay[]> {
+  const groups = new Map<string, UserDay[]>()
+  for (const record of records) {
+    const key = organizationGroupKey(record.enterpriseId, record.organizationId)
+    const group = groups.get(key)
+    if (group) group.push(record)
+    else groups.set(key, [record])
+  }
+  return groups
+}

@@ -145,6 +145,13 @@
     margin-top: 12px;
   }
 
+  .usage-visuals {
+    display: block;
+  }
+  .usage-visuals > * + * {
+    margin-top: 12px;
+  }
+
   .comparison-section {
     display: block;
   }
@@ -201,6 +208,40 @@
   .comparison-table tr {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .combination-reports {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .combination-reports__heading,
+  .combination-tabs {
+    display: none;
+  }
+  .combination-reports__content,
+  .combination-reports__content[hidden] {
+    display: block !important;
+    padding: 0;
+    border: 0;
+  }
+  .combination-report,
+  .combination-report[hidden] {
+    display: block !important;
+    padding: 0;
+    break-before: page;
+    page-break-before: always;
+  }
+  .combination-report__header {
+    padding: 0 0 10px;
+    margin-bottom: 14px;
+    border: 0;
+    border-bottom: 3px solid var(--accent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .combination-report__header h3 {
+    font-size: 20px;
   }
 
   .kpi__value { font-size: 20px; }

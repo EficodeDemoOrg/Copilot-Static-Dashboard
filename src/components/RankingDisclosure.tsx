@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useState } from 'react'
 import type { CustomizationRanking } from '../data/metrics'
 import { fmtNumber } from '../format'
+import { usePrintMode } from '../hooks/usePrintMode'
 
 interface Props {
   /** Disclosure header, e.g. "All skills". */
@@ -50,44 +51,12 @@ function RankingList({
  * A collapsible, complete ranked list — shared by every "All …" disclosure at
  * the end of the report (skills, MCP servers, custom agents, slash commands,
  * plugins). On screen it is a native `<details>`/`<summary>` the reader can fold
- * away. Print uses synchronous browser events because CSS cannot reveal a closed
- * `<details>` element and a React state update may miss the print-layout capture.
+ * away. Shared print mode controls the `open` property because CSS cannot reveal
+ * a closed `<details>` element.
  */
 export function RankingDisclosure({ title, items, emptyMessage, defaultOpen = false }: Props) {
-  const ref = useRef<HTMLDetailsElement>(null)
-  const preprintOpen = useRef<boolean | null>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-
-    const media = window.matchMedia('print')
-    const openForPrint = () => {
-      if (preprintOpen.current === null) preprintOpen.current = el.open
-      el.open = true
-    }
-    const restoreAfterPrint = () => {
-      if (preprintOpen.current === null) return
-      el.open = preprintOpen.current
-      preprintOpen.current = null
-    }
-    const onMediaChange = (event: MediaQueryListEvent) => {
-      if (event.matches) openForPrint()
-      else restoreAfterPrint()
-    }
-
-    window.addEventListener('beforeprint', openForPrint)
-    window.addEventListener('afterprint', restoreAfterPrint)
-    media.addEventListener('change', onMediaChange)
-    if (media.matches) openForPrint()
-
-    return () => {
-      window.removeEventListener('beforeprint', openForPrint)
-      window.removeEventListener('afterprint', restoreAfterPrint)
-      media.removeEventListener('change', onMediaChange)
-      restoreAfterPrint()
-    }
-  }, [])
+  const printing = usePrintMode()
+  const [screenOpen, setScreenOpen] = useState(defaultOpen)
 
   const emptyText = emptyMessage ?? `No ${title.replace(/^all\s+/i, '').toLowerCase()} recorded for this range.`
   const keepWhole = items.length <= PRINT_EDGE_ROWS * 2
@@ -96,7 +65,13 @@ export function RankingDisclosure({ title, items, emptyMessage, defaultOpen = fa
   const tailItems = keepWhole ? [] : items.slice(-PRINT_EDGE_ROWS)
 
   return (
-    <details ref={ref} className="disclosure" open={defaultOpen}>
+    <details
+      className="disclosure"
+      open={printing || screenOpen}
+      onToggle={(event) => {
+        if (!printing) setScreenOpen(event.currentTarget.open)
+      }}
+    >
       <summary className="disclosure__summary">
         <DisclosureHeading title={title} count={items.length} />
       </summary>

@@ -1,5 +1,6 @@
 import type { CustomizationTotal, FeatureTotal, UserDay } from './types'
 import { distinctOrganizationGroups } from './organizationGroups'
+import { SURFACE_DEFINITIONS, type SurfaceKey } from './surfaces'
 
 /**
  * Pure aggregations over already-filtered records. No React, no formatting —
@@ -299,6 +300,122 @@ export function interactionsByFeaturePerDay(
   }
 
   return { featureNames, hasOther, points }
+}
+
+export interface BubbleCloudDatum {
+  /** Stable raw identifier used as the React/data key. */
+  key: string
+  /** Presentation label. Raw feature/model names are formatted by the view. */
+  label: string
+  value: number
+}
+
+export function topBubbleCloud(
+  data: BubbleCloudDatum[],
+  limit = 7,
+): BubbleCloudDatum[] {
+  const ranked = data
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value || a.key.localeCompare(b.key))
+  const top = ranked.slice(0, limit)
+  const remainder = ranked.slice(limit)
+
+  if (remainder.length === 0) return top
+
+  return [
+    ...top,
+    {
+      key: '__others__',
+      label: 'Others',
+      value: remainder.reduce((sum, item) => sum + item.value, 0),
+    },
+  ]
+}
+
+function interactionsByBreakdownCloud(
+  records: UserDay[],
+  pick: (record: UserDay) => FeatureTotal[],
+): BubbleCloudDatum[] {
+  const totalByName = new Map<string, number>()
+
+  for (const record of records) {
+    for (const item of pick(record)) {
+      totalByName.set(item.name, (totalByName.get(item.name) ?? 0) + item.interactions)
+    }
+  }
+
+  return [...totalByName.entries()]
+    .sort(([nameA, totalA], [nameB, totalB]) => totalB - totalA || nameA.localeCompare(nameB))
+    .map(([name, value]) => ({
+      key: name,
+      label: name,
+      value,
+    }))
+}
+
+/** Every observed feature, ranked by interactions across the filtered range. */
+export function interactionsByFeatureCloud(records: UserDay[]): BubbleCloudDatum[] {
+  return interactionsByBreakdownCloud(records, (record) => record.totalsByFeature)
+}
+
+/** Every observed model, ranked by interaction count rather than Lines of Code. */
+export function interactionsByModelCloud(records: UserDay[]): BubbleCloudDatum[] {
+  return interactionsByBreakdownCloud(records, (record) => record.totalsByModelFeature)
+}
+
+/** Distinct users across the filtered range for each logical usage surface. */
+export function usersBySurfaceCloud(records: UserDay[]): BubbleCloudDatum[] {
+  const usersBySurface = new Map<SurfaceKey, Set<number>>(
+    SURFACE_DEFINITIONS.map((surface) => [surface.key, new Set<number>()]),
+  )
+
+  for (const record of records) {
+    for (const surface of SURFACE_DEFINITIONS) {
+      if (surface.isUsed(record)) usersBySurface.get(surface.key)!.add(record.userId)
+    }
+  }
+
+  return SURFACE_DEFINITIONS.map((surface) => ({
+    key: surface.key,
+    label: surface.label,
+    value: usersBySurface.get(surface.key)!.size,
+  }))
+}
+
+/**
+ * Distinct users grouped by the exact number of logical surfaces they used
+ * across the filtered range. Flags are unioned before counting, so each user
+ * lands in exactly one bucket.
+ */
+export function usersBySurfaceCountCloud(records: UserDay[]): BubbleCloudDatum[] {
+  const surfacesByUser = new Map<number, Set<SurfaceKey>>()
+
+  for (const record of records) {
+    let surfaces = surfacesByUser.get(record.userId)
+    if (!surfaces) {
+      surfaces = new Set()
+      surfacesByUser.set(record.userId, surfaces)
+    }
+    for (const surface of SURFACE_DEFINITIONS) {
+      if (surface.isUsed(record)) surfaces.add(surface.key)
+    }
+  }
+
+  const counts = Array.from({ length: SURFACE_DEFINITIONS.length + 1 }, () => 0)
+  for (const surfaces of surfacesByUser.values()) {
+    if (surfaces.size > 0) counts[surfaces.size] = (counts[surfaces.size] ?? 0) + 1
+  }
+
+  const bubbles: BubbleCloudDatum[] = []
+  for (let count = 1; count <= SURFACE_DEFINITIONS.length; count++) {
+    bubbles.push({
+      key: String(count),
+      label: `${count} ${count === 1 ? 'surface' : 'surfaces'}`,
+      value: counts[count] ?? 0,
+    })
+  }
+
+  return bubbles
 }
 
 /**

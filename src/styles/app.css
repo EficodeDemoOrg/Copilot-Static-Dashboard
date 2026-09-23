@@ -778,6 +778,79 @@ code {
 /* Recharts fills are inline styles on SVG; keep them exact when printing. */
 .recharts-wrapper { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
+/* ---------- Bubble clouds ---------- */
+.bubble-cloud-chart {
+  min-width: 0;
+}
+.bubble-cloud {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+}
+.bubble-cloud__circle {
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.bubble-cloud__text {
+  fill: var(--text-primary);
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+  pointer-events: none;
+}
+.bubble-cloud__text--strong {
+  font-weight: 700;
+}
+.bubble-cloud__label {
+  font-weight: 600;
+}
+.bubble-cloud__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bubble-cloud-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bubble-cloud-legend__item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 11px;
+}
+.bubble-cloud-legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.bubble-cloud-legend__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+}
+.bubble-cloud-legend__value {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .tooltip {
   background: var(--surface-1);
   border: 1px solid var(--border);

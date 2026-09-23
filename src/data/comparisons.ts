@@ -3,6 +3,7 @@ import {
   isActive,
 } from './metrics'
 import { organizationGroupFor } from './organizationGroups'
+import { SURFACE_DEFINITIONS, type SurfaceKey } from './surfaces'
 import type { CustomizationTotal, EntityAliases, UserDay } from './types'
 
 export const ADOPTION_BUCKETS = [
@@ -16,18 +17,9 @@ export const ADOPTION_BUCKETS = [
 
 export type AdoptionBucket = (typeof ADOPTION_BUCKETS)[number]
 
-export const TOOL_COLUMNS = [
-  { key: 'agent', label: 'Agent' },
-  { key: 'chat', label: 'Chat' },
-  { key: 'cli', label: 'CLI' },
-  { key: 'vscodeAgent', label: 'VS Code Agent' },
-  { key: 'copilotApp', label: 'Copilot App' },
-  { key: 'codeReviewActive', label: 'Code review (active)' },
-  { key: 'codeReviewPassive', label: 'Code review (passive)' },
-  { key: 'cloudAgent', label: 'Cloud / coding agent' },
-] as const
+export const TOOL_COLUMNS = SURFACE_DEFINITIONS.map(({ key, label }) => ({ key, label }))
 
-export type ToolKey = (typeof TOOL_COLUMNS)[number]['key']
+export type ToolKey = SurfaceKey
 
 export const CUSTOMIZATION_COLUMNS = [
   { key: 'mcp', label: 'MCP' },
@@ -235,15 +227,10 @@ function toolRows(groups: Group[]): ToolComparisonRow[] {
     }
 
     for (const record of group.records) {
-      if (record.usedAgent) users.agent.add(record.userId)
-      if (record.usedChat) users.chat.add(record.userId)
-      if (record.usedCli) users.cli.add(record.userId)
-      if (record.usedVscodeAgent) users.vscodeAgent.add(record.userId)
-      if (record.usedCopilotApp) users.copilotApp.add(record.userId)
-      if (record.usedCopilotCodeReviewActive) users.codeReviewActive.add(record.userId)
-      if (record.usedCopilotCodeReviewPassive) users.codeReviewPassive.add(record.userId)
-      if (record.usedCopilotCloudAgent || record.usedCopilotCodingAgent) {
-        users.cloudAgent.add(record.userId)
+      for (const surface of SURFACE_DEFINITIONS) {
+        if (surface.isUsed(record)) {
+          users[surface.key].add(record.userId)
+        }
       }
     }
 

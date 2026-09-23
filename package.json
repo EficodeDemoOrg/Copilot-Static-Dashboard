@@ -15,12 +15,14 @@
     "generate:sample": "node scripts/generate-sample-data.mjs > src/data/sample.ndjson"
   },
   "dependencies": {
+    "d3-hierarchy": "^3.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-is": "^19.3.0",
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
     "@types/node": "^26.6.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

@@ -12,9 +12,9 @@ Drop in one or more Copilot usage metrics exports. Each file gets its own valida
 syntax, scope, record count, and unique enterprise/organization IDs can be reviewed before
 opening the dashboard. Additional files can be added, invalid files can be removed or ignored,
 and optional display names can be assigned to IDs. The resulting dashboard provides
-enterprise/organization comparisons, four aggregate daily graphs, a set of
-feature/adoption/credit/LoC visualizations, top-five model/language/customization rankings, and
-five complete end-of-report disclosures. When multiple files are merged or multiple
+enterprise/organization comparisons, aggregate daily charts and bubble clouds, a set of
+feature/adoption/credit/Lines of Code visualizations, top-five model/language/customization
+rankings, and five complete end-of-report disclosures. When multiple files are merged or multiple
 enterprise/organization combinations are present, a collapsed appendix repeats every
 non-comparison visual for each unique combination behind dynamic tabs.
 
@@ -31,18 +31,26 @@ non-comparison visual for each unique combination behind dynamic tabs.
   seven features, with the remaining tail folded into Other
 - **Lines of code** — added/deleted totals and per-user values
 
-**Four daily graphs**
+**Daily charts and bubble clouds**
 
 - **Interactions per day, by feature** — the top 7 features stacked, remainder folded into Other
+- **Feature interactions bubble cloud** — the top 7 features across the selected range, with
+  bubble area proportional to total interactions and the remaining tail summarized under Others
 - **Code generations and acceptances per day** — two independent counts plotted together; this
   chart never derives or implies an acceptance-rate percentage
 - **Daily users by surface** — IDE agent mode, IDE chat, the CLI, and Copilot cloud/coding agent
   (one combined line — GitHub documents the cloud and coding agent flags as the same signal)
+- **Users by surface bubble cloud** — the top 7 logical surfaces by distinct users across the
+  selected range, with the remaining surface summarized under Others
+- **Users by number of surfaces bubble cloud** — the top 7 non-empty surface-count buckets across
+  the selected range, with any remaining bucket summarized under Others
+- **Model interactions bubble cloud** — the top 7 models across the selected range, measured by
+  interaction count rather than Lines of Code, with the remaining tail summarized under Others
 - **AI credits per day**
 
-**Feature, adoption, credit, and LoC visualizations**
+**Feature, adoption, credit, and Lines of Code visualizations**
 
-- **LoC added/deleted per feature**
+- **Lines of Code added/deleted per feature**
 - **AI adoption per user** — each user's *highest* numeric adoption phase reached in the selected
   period, not their most recent
 - **Average AI credits per distinct user seen**, plus average daily AI credits per user and in
@@ -54,8 +62,8 @@ non-comparison visual for each unique combination behind dynamic tabs.
 
 **Top-five rankings**
 
-- **Top 5 models and languages by LoC changed** — ranked by combined added + deleted LoC, shown as
-  separate added/deleted bars
+- **Top 5 models and languages by Lines of Code changed** — ranked by combined added + deleted
+  Lines of Code, shown as separate added/deleted bars
 - **Top 5 custom agents, MCP servers, skills, plugins, and slash commands** — ranked by
   interaction count
 
@@ -133,8 +141,14 @@ sample behind **Add sample data**.
 
 Optional schema fields (breakdown arrays, `ai_adoption_phase`, the `used_*` flags, …) can be
 absent or empty on any record. Rather than a blank or a thrown error, each visualization that
-depends on one shows its own targeted empty state (e.g. "No attributed feature LoC data for this
-range.") explaining what specifically is missing.
+depends on one shows its own targeted empty state (e.g. "No attributed feature Lines of Code data
+for this range.") explaining what specifically is missing.
+
+Known feature and surface identifiers receive curated display labels, including `copilot_app` as
+`Copilot App`, `copilot_cli` as `Copilot CLI`, `chat_inline` as `Editor Inline Chat`, and
+`chat_panel` / `chat_panel_…` as `Editor` / `Editor …`. Identifiers ending in `_mode` are expanded
+to title-cased labels such as `agent_mode` → `Agent Mode`; other identifiers without a curated
+label are displayed exactly as supplied.
 
 The bundled synthetic sample contains several invented enterprise/organization combinations, so
 the complete validation, naming, and comparison workflow can be evaluated without loading a real
@@ -146,11 +160,27 @@ Formulas and choices that are not obvious from a chart title alone:
 
 - **Feature interactions** show the top 7 features by interaction count over the selected range,
   plus a complete `Other` tail — no feature's activity is ever dropped, only folded.
+- **Bubble clouds rank positive categories by value**, show the top seven, and sum the complete
+  remaining tail into one `Others` bubble. Circle area is proportional to value; exact values
+  remain in a persistent color legend and native tooltips when a small circle cannot fit text.
+  The top seven use distinct category colors and `Others` stays neutral.
+- **The feature interactions bubble cloud sizes bubble area by total interactions** across the
+  selected range.
 - **Generations and acceptances are independent counts**, plotted on the same axis. Neither this
-  app nor the export defines a LoC-based acceptance rate — see Interpretation limits below.
+  app nor the export defines a Lines of Code acceptance rate — see Interpretation limits below.
 - **Copilot cloud/coding agent appears once**, not twice: GitHub documents
   `used_copilot_coding_agent` and `used_copilot_cloud_agent` as backward-compatible names for the
   same signal, so the two are folded with a logical OR into one line.
+- **The surface bubble cloud evaluates all eight logical usage surfaces**, while the existing
+  daily line chart retains its four broader series. Each named bubble counts distinct users
+  across the selected range, not records or user-days; the eighth-ranked surface is folded into
+  `Others`.
+- **The surface-count bubble cloud buckets each user once per selected range** after unioning all
+  logical surface flags for that user. Bubbles cover 1 through 8 surfaces when those buckets have
+  users; records with no reported surface are excluded rather than placed in a zero-surface
+  usage bucket.
+- **The model bubble cloud measures interactions** from `totals_by_model_feature`, not Lines of
+  Code.
 - **Adoption distribution** uses each user's *highest* numeric adoption phase seen in the selected
   period, not their most recent or an average — a user who ever reached Phase 3 in range counts
   as Phase 3, even if most of their days were Phase 1.
@@ -176,16 +206,18 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Feature preference** is the percentage of a group's attributed `totals_by_feature`
   interactions in each displayed feature. Feature columns are the top seven across all displayed
   groups plus Other when a tail exists.
-- **LoC comparison rows** sort by combined added + deleted LoC per user, then by combined total
-  LoC.
-- **Credit and LoC deviations use population standard deviation** (`sqrt(sum((x - mean)²) / N)`),
+- **Lines of Code comparison rows** sort by combined added + deleted Lines of Code per user, then
+  by combined total Lines of Code.
+- **Credit and Lines of Code deviations use population standard deviation**
+  (`sqrt(sum((x - mean)²) / N)`),
   never the sample (`N - 1`) form — the filtered export *is* the full population being reported,
   not a sample drawn from a larger one.
-- **Daily LoC deviation is computed across that day's user records**, not across daily
-  organization-wide totals — the mean and spread describe how individual users' LoC varied on
-  that day, not day-to-day variance in an org total.
-- **Top models and languages rank by combined LoC added + deleted**, but the two measures are
-  always displayed as separate bars — they are never netted into one "changed lines" number.
+- **Daily Lines of Code deviation is computed across that day's user records**, not across daily
+  organization-wide totals — the mean and spread describe how individual users' Lines of Code
+  varied on that day, not day-to-day variance in an org total.
+- **Top models and languages rank by combined Lines of Code added + deleted**, but the two
+  measures are always displayed as separate bars — they are never netted into one "changed
+  lines" number.
 - **Customization rankings** (custom agents, MCP servers, skills, plugins, slash commands) rank by
   interaction count.
 
@@ -196,14 +228,14 @@ Formulas and choices that are not obvious from a chart title alone:
 - **AI credits are not attributed by feature, model, or surface** in this export. There is no
   chart (and no way) to say "these credits were spent on chat" — only a per-day, per-user, or
   per-organization total.
-- **Model and language LoC breakdowns cover attributed rows only.** GitHub's `totals_by_model_feature`
-  and `totals_by_language_feature` can omit unattributed activity, so those totals may not
-  reconcile with the top-level lines-added/deleted figures — see `ATTRIBUTED_LOC_NOTE` in
-  `src/components/charts/LocGroupedBarChart.tsx`, which every model/language chart in the app
-  displays alongside its numbers.
-- **LoC added is a magnitude, not an acceptance rate.** `loc_added_sum` can exceed
+- **Model and language Lines of Code breakdowns cover attributed rows only.** GitHub's
+  `totals_by_model_feature` and `totals_by_language_feature` can omit unattributed activity, so
+  those totals may not reconcile with the top-level lines-added/deleted figures — see
+  `ATTRIBUTED_LOC_NOTE` in `src/components/charts/LocGroupedBarChart.tsx`, which every
+  model/language chart in the app displays alongside its numbers.
+- **Lines of Code added is a magnitude, not an acceptance rate.** `loc_added_sum` can exceed
   `loc_suggested_to_add_sum` in real exports, so lines added must never be read as a numerator
-  over suggested lines — there is no LoC-based acceptance rate anywhere in this app.
+  over suggested lines — there is no Lines of Code acceptance rate anywhere in this app.
 - **Optional schema fields can be absent or empty** and produce a targeted empty state rather than
   a broken chart — see "Supported input" above.
 

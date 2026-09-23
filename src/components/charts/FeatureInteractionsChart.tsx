@@ -1,6 +1,6 @@
 import type { FeatureInteractionsByDay } from '../../data/metrics'
 import { series as palette, otherFill } from '../../theme/palette'
-import { fmtNumber } from '../../format'
+import { fmtMetricLabel, fmtNumber } from '../../format'
 import { DailyMultiSeriesChart, type DailySeries } from './DailyMultiSeriesChart'
 
 /**
@@ -27,7 +27,7 @@ export function FeatureInteractionsChart({ data }: Props) {
   const safePalette = palette.filter((_, i) => i !== 3)
   const chartSeries: DailySeries[] = data.featureNames.map((name, i) => ({
     key: name,
-    name,
+    name: fmtMetricLabel(name),
     color: safePalette[i % safePalette.length]!,
   }))
   if (data.hasOther) chartSeries.push({ key: 'Other', name: 'Other', color: otherFill })

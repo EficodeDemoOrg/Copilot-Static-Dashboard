@@ -3,6 +3,7 @@ import { applyFilters } from './metrics'
 import {
   distinctOrganizationGroups,
   organizationGroupKey,
+  organizationGroupLabel,
   partitionRecordsByOrganizationGroup,
 } from './organizationGroups'
 import { validateNdjsonText } from './parseNdjson'
@@ -17,6 +18,15 @@ function recordsFrom(fileName: string, ...records: unknown[]): UserDay[] {
 }
 
 describe('organization group report data', () => {
+  it('uses concise labels for enterprise and organization scopes', () => {
+    expect(organizationGroupLabel('4411')).toBe('Enterprise: 4411')
+    expect(organizationGroupLabel('4411', '262558645')).toBe(
+      'Organization: 4411/262558645',
+    )
+    expect(organizationGroupLabel(undefined, '262558645')).toBe('Organization: 262558645')
+    expect(organizationGroupLabel()).toBe('No enterprise or organization')
+  })
+
   it('applies inclusive date filters without filtering enterprise/organization groups', () => {
     const records = recordsFrom(
       'organization.ndjson',

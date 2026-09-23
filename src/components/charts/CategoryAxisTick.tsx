@@ -43,17 +43,18 @@ interface TickProps {
  * This measures the label against the axis's own reserved width and truncates
  * with an ellipsis, keeping the full name available as a native title hover.
  */
-export function categoryAxisTick(labelWidth: number) {
+export function categoryAxisTick(labelWidth: number, labelFormatter: (value: string) => string = (value) => value) {
   // Leave a few px of breathing room before the plot area / tick line.
   const maxWidth = Math.max(0, labelWidth - 8)
 
   return function CategoryAxisTick({ x = 0, y = 0, payload }: TickProps): ReactElement {
     const value = String(payload?.value ?? '')
-    const label = truncate(value, maxWidth)
+    const formatted = labelFormatter(value)
+    const label = truncate(formatted, maxWidth)
     return (
       <text x={x} y={y} dy={4} textAnchor="end" fontSize={12} fill={ink.muted}>
         {label}
-        {label !== value && <title>{value}</title>}
+        {label !== formatted && <title>{formatted}</title>}
       </text>
     )
   }

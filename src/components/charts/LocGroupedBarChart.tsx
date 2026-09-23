@@ -26,6 +26,8 @@ interface Props {
   emptyMessage?: string
   /** Interpretation copy rendered under the chart, e.g. the attribution disclaimer for model/language views. */
   note?: string
+  /** Optional presentation-only formatter for raw category names. */
+  labelFormatter?: (name: string) => string
 }
 
 /**
@@ -36,12 +38,18 @@ interface Props {
  * for model/language) — this component only renders whatever it is given, and
  * grows to fit every row rather than clipping the tail silently.
  */
-export function LocGroupedBarChart({ data, labelWidth = 150, emptyMessage, note }: Props) {
+export function LocGroupedBarChart({
+  data,
+  labelWidth = 150,
+  emptyMessage,
+  note,
+  labelFormatter = (name) => name,
+}: Props) {
   if (data.length === 0) {
-    return <p className="empty">{emptyMessage ?? 'No attributed LoC data for this range.'}</p>
+    return <p className="empty">{emptyMessage ?? 'No attributed Lines of Code data for this range.'}</p>
   }
 
-  const Tip = makeTooltip(fmtNumber, (name) => name)
+  const Tip = makeTooltip(fmtNumber, labelFormatter)
   const height = Math.max(MIN_HEIGHT, data.length * ROW_HEIGHT + 44)
 
   return (
@@ -53,7 +61,7 @@ export function LocGroupedBarChart({ data, labelWidth = 150, emptyMessage, note 
             type="category"
             dataKey="name"
             width={labelWidth}
-            tick={categoryAxisTick(labelWidth)}
+            tick={categoryAxisTick(labelWidth, labelFormatter)}
             tickLine={false}
             axisLine={false}
             interval={0}

@@ -11,7 +11,7 @@ import {
   type OrganizationComparisons,
   type ToolComparisonRow,
 } from '../data/comparisons'
-import { fmtCompact, fmtNumber, fmtPercent } from '../format'
+import { fmtCompact, fmtMetricLabel, fmtNumber, fmtPercent } from '../format'
 import { ChartCard } from './ChartCard'
 
 interface Props {
@@ -258,7 +258,7 @@ export function OrganizationComparisonSection({ data }: Props) {
             rows={data.featurePreferences}
             columns={data.featureColumns.map((feature) => ({
               key: feature,
-              label: feature,
+              label: fmtMetricLabel(feature),
               render: (row) => fmtPercent(row.shares[feature] ?? null),
             }))}
           />
@@ -267,7 +267,7 @@ export function OrganizationComparisonSection({ data }: Props) {
 
       <ChartCard
         title="Lines of code by enterprise / organization"
-        subtitle="Sorted by combined added + deleted LoC per user, then combined total LoC."
+        subtitle="Sorted by combined added + deleted Lines of Code per user, then combined total Lines of Code."
       >
         <ComparisonTable<LocComparisonRow>
           label="Lines of code by enterprise and organization"

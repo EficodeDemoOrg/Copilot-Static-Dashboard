@@ -153,6 +153,24 @@
     margin-top: 12px;
   }
 
+  .bubble-cloud {
+    max-width: 520px;
+  }
+  .bubble-cloud-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 8px;
+  }
+  .bubble-cloud-legend__item {
+    grid-template-columns: 9px minmax(0, 1fr) auto;
+    gap: 5px;
+    padding: 3px 5px;
+    font-size: 8px;
+  }
+  .bubble-cloud-legend__swatch {
+    width: 8px;
+    height: 8px;
+  }
+
   .dashboard-tabs__panels {
     padding: 0;
   }

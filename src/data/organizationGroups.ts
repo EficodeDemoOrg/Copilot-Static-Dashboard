@@ -18,12 +18,16 @@ export function organizationGroupLabel(
   aliases?: EntityAliases,
 ): string {
   const enterprise = enterpriseId
-    ? `Enterprise ${entityDisplayName('enterprise', enterpriseId, aliases)}`
-    : 'No enterprise'
+    ? entityDisplayName('enterprise', enterpriseId, aliases)
+    : undefined
   const organization = organizationId
-    ? `Organization ${entityDisplayName('organization', organizationId, aliases)}`
-    : 'No organization'
-  return `${enterprise} / ${organization}`
+    ? entityDisplayName('organization', organizationId, aliases)
+    : undefined
+
+  if (enterprise && organization) return `Organization: ${enterprise}/${organization}`
+  if (enterprise) return `Enterprise: ${enterprise}`
+  if (organization) return `Organization: ${organization}`
+  return 'No enterprise or organization'
 }
 
 export function organizationGroupFor(record: UserDay, aliases?: EntityAliases): OrganizationGroup {

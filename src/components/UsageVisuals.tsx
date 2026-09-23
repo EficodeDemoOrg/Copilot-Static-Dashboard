@@ -8,7 +8,9 @@ import {
   byDay,
   customAgentRanking,
   dailyLocDeviation,
+  interactionsByFeatureCloud,
   interactionsByFeaturePerDay,
+  interactionsByModelCloud,
   locByFeature,
   mcpRanking,
   pluginRanking,
@@ -16,16 +18,20 @@ import {
   slashCommandRanking,
   topLanguageLoc,
   topModelLoc,
+  usersBySurfaceCloud,
+  usersBySurfaceCountCloud,
   usersBySurfaceByDay,
   type DateRange,
 } from '../data/metrics'
 import type { UserDay } from '../data/types'
+import { fmtMetricLabel } from '../format'
 import { ChartCard } from './ChartCard'
 import { RankingDisclosure } from './RankingDisclosure'
 import { AdoptionPhaseChart } from './charts/AdoptionPhaseChart'
 import { AiCreditsChart } from './charts/AiCreditsChart'
 import { AnonymousCreditDotPlot, DAILY_CREDIT_DOT_PLOT_NOTE } from './charts/AnonymousCreditDotPlot'
 import { AverageAiCreditsStat } from './charts/AverageAiCreditsStat'
+import { BubbleCloudChart } from './charts/BubbleCloudChart'
 import { FeatureInteractionsChart } from './charts/FeatureInteractionsChart'
 import { GenerationsAcceptancesChart } from './charts/GenerationsAcceptancesChart'
 import { LocDeviationChart } from './charts/LocDeviationChart'
@@ -49,10 +55,14 @@ export function UsageVisuals({
     () => interactionsByFeaturePerDay(records, dailyBounds),
     [records, dailyBounds],
   )
+  const featureInteractionCloud = useMemo(() => interactionsByFeatureCloud(records), [records])
+  const modelInteractionCloud = useMemo(() => interactionsByModelCloud(records), [records])
   const surfaceDaily = useMemo(
     () => usersBySurfaceByDay(records, dailyBounds),
     [records, dailyBounds],
   )
+  const surfaceCloud = useMemo(() => usersBySurfaceCloud(records), [records])
+  const surfaceCountCloud = useMemo(() => usersBySurfaceCountCloud(records), [records])
   const locDeviationDaily = useMemo(
     () => dailyLocDeviation(records, dailyBounds),
     [records, dailyBounds],
@@ -86,6 +96,16 @@ export function UsageVisuals({
         <FeatureInteractionsChart data={featureInteractions} />
       </ChartCard>
 
+      <ChartCard title="Features by User Interactions">
+        <BubbleCloudChart
+          data={featureInteractionCloud}
+          ariaLabel="Feature interactions bubble cloud"
+          valueNoun="interaction"
+          labelFormatter={fmtMetricLabel}
+          emptyMessage="No attributed feature interaction data for this range."
+        />
+      </ChartCard>
+
       <ChartCard
         title="Code generations and acceptances per day"
         subtitle="Independent counts, plotted together — never combined into an acceptance-rate percentage."
@@ -100,15 +120,43 @@ export function UsageVisuals({
         <SurfaceUsageChart data={surfaceDaily} />
       </ChartCard>
 
+      <ChartCard title="Surfaces by Users">
+        <BubbleCloudChart
+          data={surfaceCloud}
+          ariaLabel="Distinct users by surface bubble cloud"
+          valueNoun="user"
+          emptyMessage="No surface usage recorded for this range."
+        />
+      </ChartCard>
+
+      <ChartCard title="Surfaces used per User">
+        <BubbleCloudChart
+          data={surfaceCountCloud}
+          ariaLabel="Distinct users by number of surfaces used bubble cloud"
+          valueNoun="user"
+          emptyMessage="No users with reported surface usage in this range."
+        />
+      </ChartCard>
+
+      <ChartCard title="Models by Interaction Count">
+        <BubbleCloudChart
+          data={modelInteractionCloud}
+          ariaLabel="Model interactions bubble cloud"
+          valueNoun="interaction"
+          emptyMessage="No attributed model interaction data for this range."
+        />
+      </ChartCard>
+
       <ChartCard title="Daily AI Credits Consumed">
         <AiCreditsChart data={daily} />
       </ChartCard>
 
-      <ChartCard title="LoC added/deleted per feature">
+      <ChartCard title="Lines of Code added/deleted per feature">
         <LocGroupedBarChart
           data={featureLoc}
           labelWidth={170}
-          emptyMessage="No attributed feature LoC data for this range."
+          labelFormatter={fmtMetricLabel}
+          emptyMessage="No attributed feature Lines of Code data for this range."
         />
       </ChartCard>
 
@@ -154,25 +202,25 @@ export function UsageVisuals({
 
       <div className="grid-2">
         <ChartCard
-          title="Top 5 models by LoC changed"
-          subtitle="Ranked by combined added + deleted LoC; added and deleted are shown as separate bars."
+          title="Top 5 models by Lines of Code changed"
+          subtitle="Ranked by combined added + deleted Lines of Code; added and deleted are shown as separate bars."
         >
           <LocGroupedBarChart
             data={topModels}
             labelWidth={130}
             note={ATTRIBUTED_LOC_NOTE}
-            emptyMessage="No attributed model LoC data for this range."
+            emptyMessage="No attributed model Lines of Code data for this range."
           />
         </ChartCard>
         <ChartCard
-          title="Top 5 languages by LoC changed"
-          subtitle="Ranked by combined added + deleted LoC; added and deleted are shown as separate bars."
+          title="Top 5 languages by Lines of Code changed"
+          subtitle="Ranked by combined added + deleted Lines of Code; added and deleted are shown as separate bars."
         >
           <LocGroupedBarChart
             data={topLanguages}
             labelWidth={130}
             note={ATTRIBUTED_LOC_NOTE}
-            emptyMessage="No attributed language LoC data for this range."
+            emptyMessage="No attributed language Lines of Code data for this range."
           />
         </ChartCard>
       </div>

@@ -122,6 +122,7 @@ export const usageMetricsAdapter: Adapter = {
     if (!d || uid === undefined) return undefined
 
     const phase = record['ai_adoption_phase']
+    const aiCredits = numOrUndefined(record['ai_credits_used'])
 
     return {
       day: d,
@@ -135,12 +136,17 @@ export const usageMetricsAdapter: Adapter = {
       locSuggestedToDelete: num(record['loc_suggested_to_delete_sum']),
       locAdded: num(record['loc_added_sum']),
       locDeleted: num(record['loc_deleted_sum']),
-      aiCredits: num(record['ai_credits_used']),
+      aiCredits: aiCredits ?? 0,
+      aiCreditsReported: aiCredits !== undefined,
       adoptionPhase: isObject(phase) ? str(phase['phase']) : undefined,
       adoptionPhaseNumber: isObject(phase) ? numOrUndefined(phase['phase_number']) : undefined,
       usedAgent: bool(record['used_agent']),
       usedChat: bool(record['used_chat']),
       usedCli: bool(record['used_cli']),
+      usedVscodeAgent: bool(record['used_vscode_agent']),
+      usedCopilotApp: bool(record['used_copilot_app']),
+      usedCopilotCodeReviewActive: bool(record['used_copilot_code_review_active']),
+      usedCopilotCodeReviewPassive: bool(record['used_copilot_code_review_passive']),
       usedCopilotCodingAgent: bool(record['used_copilot_coding_agent']),
       usedCopilotCloudAgent: bool(record['used_copilot_cloud_agent']),
       totalsByFeature: mapArray(record['totals_by_feature'], toFeatureTotal('feature')),

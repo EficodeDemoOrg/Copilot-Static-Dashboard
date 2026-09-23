@@ -36,5 +36,5 @@ export function usePrintMode(): boolean {
   return printing
 }
 
-/** A4 portrait at 96dpi minus 14mm margins, rounded down. */
-export const PRINT_CHART_WIDTH = 680
+/** A4 portrait at 96dpi minus 14mm page margins and the chart card's border/padding. */
+export const PRINT_CHART_WIDTH = 646

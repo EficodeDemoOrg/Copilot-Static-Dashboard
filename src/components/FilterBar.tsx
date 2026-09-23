@@ -1,16 +1,17 @@
 import type { Filters } from '../data/metrics'
+import type { OrganizationGroup } from '../data/organizationGroups'
 
 interface Props {
   filters: Filters
   onChange: (next: Filters) => void
   /** Full extent of the loaded data — used as the input bounds and the reset target. */
   bounds: { start: string; end: string }
-  organizations: string[]
+  organizationGroups: OrganizationGroup[]
   shownRecords: number
   totalRecords: number
 }
 
-export function FilterBar({ filters, onChange, bounds, organizations, shownRecords, totalRecords }: Props) {
+export function FilterBar({ filters, onChange, bounds, organizationGroups, shownRecords, totalRecords }: Props) {
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch })
 
   return (
@@ -37,17 +38,17 @@ export function FilterBar({ filters, onChange, bounds, organizations, shownRecor
         />
       </label>
 
-      {organizations.length > 1 && (
+      {organizationGroups.length > 1 && (
         <label className="field">
-          <span className="field__label">Organization</span>
+          <span className="field__label">Enterprise / organization</span>
           <select
-            value={filters.organization ?? ''}
-            onChange={(e) => set({ organization: e.target.value || undefined })}
+            value={filters.organizationGroup ?? ''}
+            onChange={(e) => set({ organizationGroup: e.target.value || undefined })}
           >
-            <option value="">All organizations</option>
-            {organizations.map((o) => (
-              <option key={o} value={o}>
-                {o}
+            <option value="">All enterprise / organization groups</option>
+            {organizationGroups.map((group) => (
+              <option key={group.key} value={group.key}>
+                {group.label}
               </option>
             ))}
           </select>

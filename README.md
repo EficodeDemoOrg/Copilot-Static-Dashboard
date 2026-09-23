@@ -7,9 +7,22 @@ Deployed to GitHub Pages — see the repository's Pages URL.
 
 ## What it does
 
-Drop in a Copilot usage metrics export and get four daily graphs, a set of
-feature/adoption/credit/LoC visualizations, top-five model/language/customization rankings, and
-five complete end-of-report disclosures:
+Drop in one or more Copilot usage metrics exports and get enterprise/organization comparisons,
+four aggregate daily graphs, a set of feature/adoption/credit/LoC visualizations, top-five
+model/language/customization rankings, and five complete end-of-report disclosures.
+
+**Enterprise / organization comparisons**
+
+- **AI adoption** — Phase 4 through Phase 1, No Cohort, and Unknown as percentage and user count
+- **AI credits** — separate total, per-user, and daily-per-active-user tables; the two averages
+  include their within-group population standard deviation
+- **Tool adoption** — percentage of users who used Agent, Chat, CLI, VS Code Agent, Copilot App,
+  active/passive code review, or the combined cloud/coding agent
+- **Extension and customization usage** — MCP, custom agent, skill, plugin, and slash-command
+  interactions as a per-user mean with the total in parentheses
+- **Feature preference** — each group's share of attributed interactions across the overall top
+  seven features, with the remaining tail folded into Other
+- **Lines of code** — added/deleted totals and per-user values
 
 **Four daily graphs**
 
@@ -45,7 +58,7 @@ Each customization ranking is followed by its own complete ranked list (all skil
 servers, all agents, all slash commands, all plugins) in a collapsible section that is always
 expanded in the printed/exported PDF, regardless of its on-screen state.
 
-Filter by date range and organization, then hit **Export PDF**.
+Filter by date range and exact enterprise/organization combination, then hit **Export PDF**.
 
 ## Privacy
 
@@ -72,12 +85,14 @@ committed. The bundled sample is synthetic, with invented logins.
 ## Supported input
 
 GitHub's **Copilot usage metrics export**: newline-delimited JSON (`.ndjson`), one record per
-user per day. Only `day` and `user_id` are required; every other field is optional and
-missing values degrade to zero (or `false`, for the `used_*` flags) rather than `NaN`.
+user per day. Only `day` and `user_id` are required; every other field is optional. Missing
+numeric values generally degrade to zero rather than `NaN`, but AI-credit comparisons preserve
+the difference between an absent `ai_credits_used` field and an explicitly reported zero.
 
 Exports arrive split into several `part-…` files. Select them all at once — they are merged and
-de-duplicated on `user_id + day`, and a note reports how many duplicates were dropped. A line
-that fails to parse is counted and skipped rather than failing the whole upload.
+de-duplicated on `enterprise_id + organization_id + user_id + day`, so one user can remain
+represented in multiple organizations on the same day. A note reports how many duplicates were
+dropped. A line that fails to parse is counted and skipped rather than failing the whole upload.
 
 Download yours from your enterprise or organization Copilot settings. There is a synthetic
 sample behind **Try with sample data**.
@@ -86,6 +101,10 @@ Optional schema fields (breakdown arrays, `ai_adoption_phase`, the `used_*` flag
 absent or empty on any record. Rather than a blank or a thrown error, each visualization that
 depends on one shows its own targeted empty state (e.g. "No attributed feature LoC data for this
 range.") explaining what specifically is missing.
+
+The bundled synthetic sample contains several invented enterprise/organization combinations,
+including records with missing IDs, so every comparison view can be evaluated without loading a
+real export.
 
 ## Metric definitions
 
@@ -101,8 +120,30 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Adoption distribution** uses each user's *highest* numeric adoption phase seen in the selected
   period, not their most recent or an average — a user who ever reached Phase 3 in range counts
   as Phase 3, even if most of their days were Phase 1.
+- **Adoption comparisons** use the same highest-phase rule within each enterprise/organization
+  group. Rows sort by Phase 4 share descending, then Phase 3, Phase 2, Phase 1, No Cohort, and
+  Unknown. Every cell shows `percentage (distinct users)`.
 - **Average AI credits per distinct user** = total AI credits ÷ distinct users seen in the
   selected range.
+- **Total AI-credit comparisons** show no deviation because dispersion is not meaningful for one
+  group total.
+- **AI credits per user** show the mean and population standard deviation across reporting users'
+  period totals within each group.
+- **Daily AI credits per user** are calculated per group as each day's credits divided by that
+  day's active users. The table shows the mean and population standard deviation of those daily
+  values, skipping days without active users.
+- **Missing AI-credit data is not zero.** A group where `ai_credits_used` was never reported shows
+  an em dash; an explicitly reported zero remains `0`.
+- **Tool adoption percentages** count distinct users who had the relevant `used_*` flag on at
+  least one day in range. `used_copilot_coding_agent` and `used_copilot_cloud_agent` are combined
+  with a logical OR.
+- **Customization comparison means** divide each group's total MCP, custom-agent, skill, plugin,
+  or slash-command interactions by its distinct users seen.
+- **Feature preference** is the percentage of a group's attributed `totals_by_feature`
+  interactions in each displayed feature. Feature columns are the top seven across all displayed
+  groups plus Other when a tail exists.
+- **LoC comparison rows** sort by combined added + deleted LoC per user, then by combined total
+  LoC.
 - **Credit and LoC deviations use population standard deviation** (`sqrt(sum((x - mean)²) / N)`),
   never the sample (`N - 1`) form — the filtered export *is* the full population being reported,
   not a sample drawn from a larger one.

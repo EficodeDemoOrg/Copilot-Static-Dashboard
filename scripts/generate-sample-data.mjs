@@ -27,8 +27,9 @@
  *    interaction count). `totals_by_model_feature` reconciles only on
  *    interaction count; its generation/acceptance/LoC counts are partially
  *    attributed, reflecting GitHub's documented unattributed model activity.
- *  - A mixture of used_agent/used_chat/used_cli/used_copilot_coding_agent/
- *    used_copilot_cloud_agent, with the coding/cloud pair always matching.
+ *  - Multiple enterprise/organization combinations and a mixture of every
+ *    `used_*` signal normalized by the dashboard, with the coding/cloud pair
+ *    always matching.
  *  - Adoption phases that step up for some users partway through the window.
  *  - AI credit zeros, typical values, and a handful of outliers.
  *  - Per-user LoC scale variation, for visible daily standard-deviation bands.
@@ -195,8 +196,12 @@ const FIRST_NAMES = [
 
 const REPORT_START_DAY = '2026-08-24'
 const REPORT_END_DAY = '2026-09-20'
-const ORGANIZATION_ID = '135233467'
-const ENTERPRISE_ID = '4411'
+const ORGANIZATION_GROUPS = [
+  { enterpriseId: '4411', organizationId: '135233467' },
+  { enterpriseId: '4411', organizationId: '135233468' },
+  { enterpriseId: '5820', organizationId: '246810121' },
+  { enterpriseId: '5820', organizationId: '246810122' },
+]
 
 function daysBetween(start, end) {
   const out = []
@@ -222,10 +227,15 @@ const ADOPTION_LABELS = ['No Cohort', 'Phase 1', 'Phase 2', 'Phase 3', 'Phase 4'
 function buildPersonas() {
   return FIRST_NAMES.map((name, i) => {
     const userId = 1300000 + i * 137
+    const organizationGroup = ORGANIZATION_GROUPS[i % ORGANIZATION_GROUPS.length]
 
     const usesAgent = chance(0.5)
     const usesChat = chance(0.65)
     const usesCli = chance(0.35)
+    const usesVscodeAgent = chance(0.42)
+    const usesCopilotApp = chance(0.3)
+    const usesCodeReviewActive = chance(0.28)
+    const usesCodeReviewPassive = chance(0.38)
     const usesCloudAgent = chance(0.22)
 
     const favFeatures = shuffled(FEATURES).slice(0, randInt(2, 4))
@@ -270,9 +280,14 @@ function buildPersonas() {
     return {
       userId,
       login: `${name}-dev`,
+      organizationGroup,
       usesAgent,
       usesChat,
       usesCli,
+      usesVscodeAgent,
+      usesCopilotApp,
+      usesCodeReviewActive,
+      usesCodeReviewPassive,
       usesCloudAgent,
       favFeatures,
       favModels,
@@ -421,6 +436,12 @@ function generateRecords() {
       const usedAgentToday = persona.usesAgent && chance(isActive ? 0.75 : 0.1)
       const usedChatToday = persona.usesChat && chance(isActive ? 0.8 : 0.15)
       const usedCliToday = persona.usesCli && chance(isActive ? 0.6 : 0.05)
+      const usedVscodeAgentToday = persona.usesVscodeAgent && chance(isActive ? 0.68 : 0.08)
+      const usedCopilotAppToday = persona.usesCopilotApp && chance(isActive ? 0.55 : 0.06)
+      const usedCodeReviewActiveToday =
+        persona.usesCodeReviewActive && chance(isActive ? 0.45 : 0.04)
+      const usedCodeReviewPassiveToday =
+        persona.usesCodeReviewPassive && chance(isActive ? 0.58 : 0.08)
       // used_copilot_coding_agent and used_copilot_cloud_agent always carry
       // the same value upstream — one roll drives both.
       const usedCloudAgentToday = persona.usesCloudAgent && chance(isActive ? 0.5 : 0.05)
@@ -446,13 +467,17 @@ function generateRecords() {
         used_agent: usedAgentToday,
         used_chat: usedChatToday,
         used_cli: usedCliToday,
+        used_vscode_agent: usedVscodeAgentToday,
+        used_copilot_app: usedCopilotAppToday,
+        used_copilot_code_review_active: usedCodeReviewActiveToday,
+        used_copilot_code_review_passive: usedCodeReviewPassiveToday,
         used_copilot_coding_agent: usedCloudAgentToday,
         used_copilot_cloud_agent: usedCloudAgentToday,
       }
 
       if (!persona.omitsOrgIds) {
-        record.organization_id = ORGANIZATION_ID
-        record.enterprise_id = ENTERPRISE_ID
+        record.organization_id = persona.organizationGroup.organizationId
+        record.enterprise_id = persona.organizationGroup.enterpriseId
       }
 
       const phase = adoptionPhaseFor(persona, dayIndex)

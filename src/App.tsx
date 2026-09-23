@@ -12,7 +12,7 @@ import {
   customAgentRanking,
   dailyLocDeviation,
   dateRange,
-  distinctOrgs,
+  distinctOrganizationGroups,
   interactionsByFeaturePerDay,
   locByFeature,
   mcpRanking,
@@ -25,6 +25,7 @@ import {
   type Filters,
 } from './data/metrics'
 import { SAMPLE_FILE_NAME, SAMPLE_NDJSON } from './data/sample'
+import { compareOrganizationGroups } from './data/comparisons'
 import { UploadPanel } from './components/UploadPanel'
 import { FilterBar } from './components/FilterBar'
 import { ReportHeader } from './components/ReportHeader'
@@ -41,6 +42,7 @@ import { AverageAiCreditsStat } from './components/charts/AverageAiCreditsStat'
 import { AnonymousCreditDotPlot, DAILY_CREDIT_DOT_PLOT_NOTE } from './components/charts/AnonymousCreditDotPlot'
 import { LocDeviationChart } from './components/charts/LocDeviationChart'
 import { RankedBarChart } from './components/charts/RankedBarChart'
+import { OrganizationComparisonSection } from './components/OrganizationComparisonSection'
 
 interface Loaded {
   dataset: Dataset
@@ -152,7 +154,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
   // not merely the days that happened to see activity.
   const observed = useMemo(() => dateRange(records), [records])
   const bounds = reportWindow ?? observed
-  const organizations = useMemo(() => distinctOrgs(records), [records])
+  const organizationGroups = useMemo(() => distinctOrganizationGroups(records), [records])
 
   const filtered = useMemo(() => applyFilters(records, filters), [records, filters])
 
@@ -188,6 +190,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
   const skills = useMemo(() => skillRanking(filtered), [filtered])
   const plugins = useMemo(() => pluginRanking(filtered), [filtered])
   const slashCommands = useMemo(() => slashCommandRanking(filtered), [filtered])
+  const comparisons = useMemo(() => compareOrganizationGroups(filtered), [filtered])
 
   if (!bounds) return <p className="empty">No dated records in this export.</p>
 
@@ -199,6 +202,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
         reportWindow={reportWindow}
         range={range}
         filters={filters}
+        organizationGroups={organizationGroups}
         generatedAt={generatedAt}
       />
 
@@ -212,7 +216,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
         filters={filters}
         onChange={onFilters}
         bounds={bounds}
-        organizations={organizations}
+        organizationGroups={organizationGroups}
         shownRecords={filtered.length}
         totalRecords={records.length}
       />
@@ -221,6 +225,8 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
         <p className="empty">No records match the current filters.</p>
       ) : (
         <>
+          <OrganizationComparisonSection data={comparisons} />
+
           <ChartCard
             title="Interactions per day, by feature"
             subtitle="Stacked by the top 7 features in this range; every other feature folds into Other."

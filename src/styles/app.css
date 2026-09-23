@@ -306,6 +306,69 @@ code {
   gap: 16px;
 }
 
+/* ---------- Enterprise / organization comparisons ---------- */
+.comparison-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.comparison-section__heading { margin-top: 4px; }
+.comparison-section__heading h2 { font-size: 19px; }
+.comparison-section__heading p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.comparison-section .card { min-width: 0; }
+.comparison-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+}
+.comparison-table-print { display: none; }
+.comparison-table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.comparison-table th,
+.comparison-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--grid);
+  text-align: right;
+  white-space: nowrap;
+}
+.comparison-table thead th {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.comparison-table th:first-child,
+.comparison-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 245px;
+  text-align: left;
+}
+.comparison-table thead th:first-child {
+  z-index: 2;
+  background: var(--surface-2);
+}
+.comparison-table__group {
+  color: var(--text-primary);
+  background: var(--surface-1);
+  font-weight: 500;
+}
+.comparison-table tbody tr:last-child > * { border-bottom: 0; }
+.comparison-table tbody tr:hover > * { background: var(--surface-2); }
+
 /* Recharts fills are inline styles on SVG; keep them exact when printing. */
 .recharts-wrapper { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
@@ -361,6 +424,7 @@ code {
   font-variant-numeric: tabular-nums;
 }
 .disclosure__body { padding: 0 18px 16px; }
+.disclosure__print-content { display: none; }
 .disclosure__list { list-style: none; margin: 0; padding: 0; }
 .disclosure__row {
   display: grid;

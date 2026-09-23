@@ -1,5 +1,6 @@
 import type { Filters } from '../data/metrics'
 import { fmtDayLong } from '../format'
+import type { OrganizationGroup } from '../data/organizationGroups'
 import type { ReportWindow } from '../data/types'
 import { EficodeLogo } from './EficodeLogo'
 
@@ -9,6 +10,7 @@ interface Props {
   reportWindow?: ReportWindow
   range?: { start: string; end: string }
   filters: Filters
+  organizationGroups: OrganizationGroup[]
   /** Frozen at load time so re-renders don't churn the printed timestamp. */
   generatedAt: Date
 }
@@ -20,7 +22,15 @@ const NAMES_SHOWN = 3
  * Hidden on screen, shown when printing. Makes an exported PDF self-describing:
  * which files, which slice of them, and when it was produced.
  */
-export function ReportHeader({ fileNames, adapterLabel, reportWindow, range, filters, generatedAt }: Props) {
+export function ReportHeader({
+  fileNames,
+  adapterLabel,
+  reportWindow,
+  range,
+  filters,
+  organizationGroups,
+  generatedAt,
+}: Props) {
   const source =
     fileNames.length <= NAMES_SHOWN
       ? fileNames.join(', ')
@@ -31,7 +41,9 @@ export function ReportHeader({ fileNames, adapterLabel, reportWindow, range, fil
     adapterLabel,
     reportWindow ? `Report window ${fmtDayLong(reportWindow.start)} – ${fmtDayLong(reportWindow.end)}` : undefined,
     range ? `Showing ${fmtDayLong(range.start)} – ${fmtDayLong(range.end)}` : undefined,
-    filters.organization ? `Organization ${filters.organization}` : undefined,
+    filters.organizationGroup
+      ? organizationGroups.find((group) => group.key === filters.organizationGroup)?.label
+      : undefined,
   ].filter(Boolean)
 
   return (

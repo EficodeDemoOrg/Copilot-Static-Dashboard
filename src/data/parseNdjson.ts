@@ -1,4 +1,5 @@
 import { adapters, detectAdapter } from './adapters'
+import { organizationGroupKey } from './organizationGroups'
 import type { Dataset, ReportWindow, UserDay } from './types'
 
 export class ReportFormatError extends Error {
@@ -112,9 +113,10 @@ export async function parseFiles(files: File[]): Promise<Dataset> {
 function mergeResults(parsed: { fileName: string; result: FileResult }[]): Dataset {
   const adapter = adapters.find((a) => a.id === parsed[0]!.result.adapterId)!
 
-  // Exports arrive as Spark part files; the same user-day can appear in more than
-  // one if the user re-selects a file or the parts overlap. user_id + day is the
-  // natural key — user_login can be renamed, user_id cannot.
+  // Exports arrive as Spark part files; the same group/user/day can appear in
+  // more than one if the user re-selects a file or the parts overlap. Group
+  // identity is part of the key because one GitHub user can belong to multiple
+  // organizations represented in a merged export.
   const byKey = new Map<string, UserDay>()
   let duplicates = 0
   let malformedLines = 0
@@ -127,7 +129,7 @@ function mergeResults(parsed: { fileName: string; result: FileResult }[]): Datas
     reportWindow = unionWindow(reportWindow, result.reportWindow)
 
     for (const r of result.records) {
-      const key = `${r.userId}|${r.day}`
+      const key = `${organizationGroupKey(r.enterpriseId, r.organizationId)}|${r.userId}|${r.day}`
       if (byKey.has(key)) {
         duplicates++
         continue
@@ -147,7 +149,9 @@ function mergeResults(parsed: { fileName: string; result: FileResult }[]): Datas
   const warnings: string[] = []
   const plural = (n: number, one: string) => `${n.toLocaleString()} ${one}${n === 1 ? '' : 's'}`
   if (duplicates > 0) {
-    warnings.push(`${plural(duplicates, 'duplicate record')} dropped (same user and day seen more than once).`)
+    warnings.push(
+      `${plural(duplicates, 'duplicate record')} dropped (same enterprise, organization, user, and day seen more than once).`,
+    )
   }
   if (malformedLines > 0) {
     warnings.push(`${plural(malformedLines, 'line')} could not be parsed as JSON and ${malformedLines === 1 ? 'was' : 'were'} ignored.`)

@@ -25,6 +25,8 @@ export interface UserDay {
   locAdded: number
   locDeleted: number
   aiCredits: number
+  /** Distinguishes an explicit zero from a record where `ai_credits_used` was absent or malformed. */
+  aiCreditsReported: boolean
   /** ai_adoption_phase.phase, e.g. "Phase 2" or "No Cohort". */
   adoptionPhase?: string
   /** ai_adoption_phase.phase_number. */
@@ -32,6 +34,10 @@ export interface UserDay {
   usedAgent: boolean
   usedChat: boolean
   usedCli: boolean
+  usedVscodeAgent: boolean
+  usedCopilotApp: boolean
+  usedCopilotCodeReviewActive: boolean
+  usedCopilotCodeReviewPassive: boolean
   usedCopilotCodingAgent: boolean
   usedCopilotCloudAgent: boolean
   /** Per-feature totals from `totals_by_feature`, keyed on the `feature` name. */

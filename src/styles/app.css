@@ -517,6 +517,52 @@ code {
 .filters__spacer { flex: 1; }
 .filters__count { font-size: 13px; color: var(--text-secondary); }
 
+/* ---------- Dashboard section tabs ---------- */
+.dashboard-tabs { min-width: 0; }
+.dashboard-tabs__list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  scrollbar-width: thin;
+}
+.dashboard-tabs__tab {
+  flex: 1 0 max-content;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dashboard-tabs__tab:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.dashboard-tabs__tab[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.dashboard-tabs__tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.dashboard-tabs__panels { padding-top: 20px; }
+.dashboard-tabs__panel {
+  min-width: 0;
+  outline: none;
+}
+.dashboard-tabs__panel:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
 /* ---------- Charts grid ---------- */
 /*
  * minmax(min(Npx, 100%), 1fr) rather than minmax(Npx, 1fr): a bare Npx floor
@@ -615,43 +661,28 @@ code {
 .comparison-table tbody tr:last-child > * { border-bottom: 0; }
 .comparison-table tbody tr:hover > * { background: var(--surface-2); }
 
-/* ---------- Per-combination report appendix ---------- */
+/* ---------- Per-combination reports ---------- */
 .combination-reports {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-1);
 }
-.combination-reports__heading { font-size: inherit; }
-.combination-reports__toggle {
-  width: 100%;
+.combination-reports__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 16px 20px;
-  border: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  border-bottom: 1px solid var(--border);
 }
-.combination-reports__toggle::before {
-  content: '▸';
-  flex: none;
-  color: var(--text-muted);
-  transition: transform 120ms;
-}
-.combination-reports__toggle[aria-expanded='true']::before { transform: rotate(90deg); }
-.combination-reports__toggle:hover { background: var(--surface-2); }
-.combination-reports__toggle:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-.combination-reports__title {
-  flex: 1;
+.combination-reports__header h2 {
   font-size: 17px;
-  font-weight: 600;
+}
+.combination-reports__header p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 .combination-reports__count {
   flex: none;
@@ -664,7 +695,6 @@ code {
 }
 .combination-reports__content {
   padding: 18px 20px 20px;
-  border-top: 1px solid var(--border);
 }
 .combination-tabs {
   display: flex;
@@ -733,7 +763,11 @@ code {
 }
 
 @media (max-width: 700px) {
-  .combination-reports__toggle {
+  .dashboard-tabs__tab {
+    flex-grow: 0;
+    padding: 9px 14px;
+  }
+  .combination-reports__header {
     align-items: flex-start;
     padding: 14px 16px;
   }

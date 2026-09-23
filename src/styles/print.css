@@ -76,6 +76,7 @@
   .appbar,
   .upload,
   .filters,
+  .dashboard-tabs__list,
   .btn {
     display: none !important;
   }
@@ -152,6 +153,17 @@
     margin-top: 12px;
   }
 
+  .dashboard-tabs__panels {
+    padding: 0;
+  }
+  .dashboard-tabs__panel,
+  .dashboard-tabs__panel[hidden] {
+    display: block !important;
+  }
+  .dashboard-tabs__panel + .dashboard-tabs__panel {
+    margin-top: 12px;
+  }
+
   .comparison-section {
     display: block;
   }
@@ -215,7 +227,7 @@
     border: 0;
     background: transparent;
   }
-  .combination-reports__heading,
+  .combination-reports__header,
   .combination-tabs {
     display: none;
   }

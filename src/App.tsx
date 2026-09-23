@@ -22,6 +22,7 @@ import { EficodeLogo } from './components/EficodeLogo'
 import { OrganizationComparisonSection } from './components/OrganizationComparisonSection'
 import { UsageVisuals } from './components/UsageVisuals'
 import { CombinationReportsSection } from './components/CombinationReportsSection'
+import { DashboardTabs, type DashboardTab } from './components/DashboardTabs'
 import { PrintModeProvider } from './hooks/usePrintMode'
 
 interface Loaded {
@@ -248,6 +249,33 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
 
   if (!bounds) return <p className="empty">No dated records in this export.</p>
 
+  const tabs: DashboardTab[] = [
+    {
+      id: 'comparisons',
+      label: 'Comparisons',
+      content: <OrganizationComparisonSection data={comparisons} />,
+    },
+    {
+      id: 'aggregate',
+      label: 'Aggregate',
+      content: <UsageVisuals records={filtered} dailyBounds={dailyBounds} />,
+    },
+  ]
+
+  if (organizationGroups.length > 1) {
+    tabs.push({
+      id: 'organizations',
+      label: 'Organizations',
+      content: (
+        <CombinationReportsSection
+          groups={organizationGroups}
+          records={filtered}
+          dailyBounds={dailyBounds}
+        />
+      ),
+    })
+  }
+
   return (
     <>
       <ReportHeader
@@ -272,22 +300,11 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
         totalRecords={records.length}
       />
 
-      <>
-        {filtered.length === 0 ? (
-          <p className="empty">No records match the current filters.</p>
-        ) : (
-          <>
-            <OrganizationComparisonSection data={comparisons} />
-            <UsageVisuals records={filtered} dailyBounds={dailyBounds} />
-          </>
-        )}
-        <CombinationReportsSection
-          groups={organizationGroups}
-          records={filtered}
-          dailyBounds={dailyBounds}
-          fileCount={dataset.fileNames.length}
-        />
-      </>
+      {filtered.length === 0 ? (
+        <p className="empty">No records match the current filters.</p>
+      ) : (
+        <DashboardTabs tabs={tabs} />
+      )}
     </>
   )
 }

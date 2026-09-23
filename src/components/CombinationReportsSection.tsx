@@ -13,18 +13,15 @@ interface Props {
   groups: OrganizationGroup[]
   records: UserDay[]
   dailyBounds?: DateRange
-  fileCount: number
 }
 
 export function CombinationReportsSection({
   groups,
   records,
   dailyBounds,
-  fileCount,
 }: Props) {
   const instanceId = useId()
   const printing = usePrintMode()
-  const [expanded, setExpanded] = useState(false)
   const [selectedKey, setSelectedKey] = useState(() => groups[0]?.key)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const recordsByGroup = useMemo(
@@ -38,10 +35,9 @@ export function CombinationReportsSection({
     }
   }, [groups, selectedKey])
 
-  if (fileCount <= 1 && groups.length <= 1) return null
+  if (groups.length <= 1) return null
 
   const headingId = `${instanceId}-heading`
-  const contentId = `${instanceId}-content`
   const selectTab = (index: number) => {
     const group = groups[index]
     if (!group) return
@@ -61,28 +57,17 @@ export function CombinationReportsSection({
 
   return (
     <section className="combination-reports" aria-labelledby={headingId}>
-      <h2 className="combination-reports__heading" id={headingId}>
-        <button
-          className="combination-reports__toggle"
-          type="button"
-          aria-expanded={expanded}
-          aria-controls={contentId}
-          onClick={() => setExpanded((current) => !current)}
-        >
-          <span className="combination-reports__title">
-            Detailed visuals by enterprise / organization
-          </span>
-          <span className="combination-reports__count">
-            {groups.length.toLocaleString()} {groups.length === 1 ? 'combination' : 'combinations'}
-          </span>
-        </button>
-      </h2>
+      <header className="combination-reports__header">
+        <div>
+          <h2 id={headingId}>Detailed visuals by enterprise / organization</h2>
+          <p>Select an enterprise and organization combination to inspect its usage.</p>
+        </div>
+        <span className="combination-reports__count">
+          {groups.length.toLocaleString()} combinations
+        </span>
+      </header>
 
-      <div
-        className="combination-reports__content"
-        id={contentId}
-        hidden={!expanded}
-      >
+      <div className="combination-reports__content">
         <div className="combination-tabs" role="tablist" aria-label="Enterprise and organization">
           {groups.map((group, index) => {
             const selected = group.key === selectedKey

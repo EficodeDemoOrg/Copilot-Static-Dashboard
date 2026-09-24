@@ -32,6 +32,7 @@
 
     --grid:           #e6e4de;
     --axis:           #a9a79f;
+    --weekend-band:   rgba(16, 24, 32, 0.07);
 
     --series-1: #007fa3;   /* eficode-cornflower-blue */
     --series-2: #f06400;   /* eficode-mango-tango */

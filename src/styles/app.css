@@ -20,6 +20,7 @@
 
   --grid:            #e6e4de;
   --axis:            #b5aea9;   /* eficode-gray */
+  --weekend-band:    rgba(16, 24, 32, 0.07);
 
   /*
    * Categorical chart slots. Brand cornflower blue and mango tango lead; the rest
@@ -82,6 +83,7 @@
 
     --grid:           #212c36;
     --axis:           #35424e;
+    --weekend-band:   rgba(215, 210, 203, 0.08);
 
     --series-1: #0f9cc4;
     --series-2: #e06a1c;

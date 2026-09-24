@@ -4,6 +4,7 @@ import type { LocDeviationDayPoint } from '../../data/metrics'
 import { chrome, ink, measureColor, tickStyle } from '../../theme/palette'
 import { fmtCompact, fmtDayLong, fmtDayShort, fmtNumber } from '../../format'
 import { ChartFrame } from './ChartFrame'
+import { WeekendBands } from './WeekendBands'
 
 /**
  * Required interpretation copy: the band is a spread between users on one day,
@@ -74,6 +75,7 @@ export function LocDeviationChart({ data }: Props) {
     <>
       <ChartFrame height={HEIGHT}>
         <ComposedChart data={chartData} margin={{ top: 8, right: 22, bottom: 0, left: 0 }}>
+          <WeekendBands dates={chartData.map((point) => point.date)} />
           <CartesianGrid stroke={chrome.grid} vertical={false} />
           <XAxis
             dataKey="date"

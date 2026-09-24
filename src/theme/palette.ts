@@ -29,6 +29,7 @@ export const chrome = {
   grid: 'var(--grid)',
   axis: 'var(--axis)',
   surface: 'var(--surface-1)',
+  weekendBand: 'var(--weekend-band)',
 } as const
 
 /**

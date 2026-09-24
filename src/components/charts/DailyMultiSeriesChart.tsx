@@ -3,6 +3,7 @@ import { chrome, ink, tickStyle } from '../../theme/palette'
 import { fmtCompact, fmtDayLong, fmtDayShort, fmtNumber } from '../../format'
 import { makeTooltip } from './ChartTooltip'
 import { ChartFrame } from './ChartFrame'
+import { WeekendBands } from './WeekendBands'
 
 /** One plotted series: a data key, its legend/tooltip label, and its stroke/fill color. */
 export interface DailySeries {
@@ -57,6 +58,7 @@ export function DailyMultiSeriesChart({
 
   const axes = (
     <>
+      <WeekendBands dates={data.map((row) => row.date)} />
       <CartesianGrid stroke={chrome.grid} vertical={false} />
       <XAxis
         dataKey="date"

@@ -4,6 +4,7 @@ import { chrome, measureColor, tickStyle } from '../../theme/palette'
 import { fmtCompact, fmtDayLong, fmtDayShort, fmtNumber } from '../../format'
 import { makeTooltip } from './ChartTooltip'
 import { ChartFrame } from './ChartFrame'
+import { WeekendBands } from './WeekendBands'
 
 /** The countable measures on a DayPoint — acceptanceRate has its own chart. */
 type Measure = 'activeUsers' | 'interactions' | 'generations' | 'acceptances' | 'aiCredits'
@@ -33,6 +34,7 @@ export function DailyUsageChart({ data, measure, label }: Props) {
             <stop offset="100%" stopColor={color} stopOpacity={0.02} />
           </linearGradient>
         </defs>
+        <WeekendBands dates={data.map((point) => point.date)} />
         <CartesianGrid stroke={chrome.grid} vertical={false} />
         <XAxis
           dataKey="date"

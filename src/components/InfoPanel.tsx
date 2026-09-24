@@ -53,7 +53,7 @@ export function InfoPanel({ isOpen, onClose, content }: Props) {
         <div className="info-panel__content">
           {content.split('\n\n').map((section, index) => {
             const lines = section.split('\n')
-            const firstLine = lines[0]
+            const firstLine = lines[0] ?? ''
 
             if (firstLine.startsWith('# ')) {
               return (

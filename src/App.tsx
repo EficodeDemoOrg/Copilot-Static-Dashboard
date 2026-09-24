@@ -23,7 +23,9 @@ import { OrganizationComparisonSection } from './components/OrganizationComparis
 import { UsageVisuals } from './components/UsageVisuals'
 import { CombinationReportsSection } from './components/CombinationReportsSection'
 import { DashboardTabs, type DashboardTab } from './components/DashboardTabs'
+import { InfoPanel } from './components/InfoPanel'
 import { PrintModeProvider } from './hooks/usePrintMode'
+import { inputFilesDocumentation } from './data/inputFilesDoc'
 
 interface Loaded {
   dataset: Dataset
@@ -42,6 +44,7 @@ export function App() {
   const [aliases, setAliases] = useState<EntityAliases>(() => emptyEntityAliases())
   const [filters, setFilters] = useState<Filters>({})
   const [error, setError] = useState<string | undefined>()
+  const [isInfoPanelOpen, setIsInfoPanelOpen] = useState(false)
   const nextFileId = useRef(0)
 
   const accept = useCallback((dataset: Dataset) => {
@@ -171,16 +174,27 @@ export function App() {
               </p>
             </div>
           </div>
-          {loaded && (
-            <div className="appbar__actions">
-              <button className="btn" onClick={clear}>
-                Clear data
-              </button>
-              <button className="btn btn--primary" onClick={() => window.print()}>
-                Export PDF
-              </button>
-            </div>
-          )}
+          <div className="appbar__actions">
+            <button
+              className="btn"
+              onClick={() => setIsInfoPanelOpen(true)}
+              type="button"
+              aria-label="Show input files guide"
+              title="Help"
+            >
+              ?
+            </button>
+            {loaded && (
+              <>
+                <button className="btn" onClick={clear}>
+                  Clear data
+                </button>
+                <button className="btn btn--primary" onClick={() => window.print()}>
+                  Export PDF
+                </button>
+              </>
+            )}
+          </div>
         </header>
 
         {loaded ? (
@@ -197,6 +211,7 @@ export function App() {
             onRemove={removeReviewFile}
             onAliasChange={changeAlias}
             onContinue={continueToDashboard}
+            onOpenInfo={() => setIsInfoPanelOpen(true)}
             files={reviewFiles}
             aliases={aliases}
             enterpriseIds={enterpriseIds}
@@ -205,6 +220,12 @@ export function App() {
             busy={busy}
           />
         )}
+
+        <InfoPanel
+          isOpen={isInfoPanelOpen}
+          onClose={() => setIsInfoPanelOpen(false)}
+          content={inputFilesDocumentation}
+        />
       </div>
     </PrintModeProvider>
   )

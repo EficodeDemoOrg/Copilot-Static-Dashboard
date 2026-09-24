@@ -14,6 +14,7 @@ interface Props {
   onRemove: (id: string) => void
   onAliasChange: (type: 'enterprise' | 'organization', id: string, value: string) => void
   onContinue: () => void
+  onOpenInfo: () => void
   files: UploadFileItem[]
   aliases: EntityAliases
   enterpriseIds: string[]
@@ -162,6 +163,7 @@ export function UploadPanel({
   onRemove,
   onAliasChange,
   onContinue,
+  onOpenInfo,
   files,
   aliases,
   enterpriseIds,
@@ -304,12 +306,9 @@ export function UploadPanel({
         </div>
       )}
 
-      <p className="upload__columns">
-        Expects GitHub's Copilot usage metrics export — newline-delimited JSON, one record per user
-        per day. Every record must include <code>day</code>, <code>user_id</code>, and{' '}
-        <code>enterprise_id</code>. Organization exports must also include{' '}
-        <code>organization_id</code> on every record.
-      </p>
+      <button className="upload__info-link" onClick={onOpenInfo} type="button">
+        Learn what data is needed and where to get it from
+      </button>
     </div>
   )
 }

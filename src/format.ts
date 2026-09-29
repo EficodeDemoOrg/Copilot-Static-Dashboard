@@ -64,3 +64,11 @@ export function fmtDayLong(date: string): string {
   const d = new Date(`${date}T00:00:00Z`)
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
+
+/** "2026-05-20" – "2026-05-26" -> "20 May – 26 May" for weekly axis ticks. */
+export const fmtDateIntervalShort = (start: string, end: string): string =>
+  `${fmtDayShort(start)} – ${fmtDayShort(end)}`
+
+/** Unambiguous interval label for weekly tooltips, including both endpoint years. */
+export const fmtDateIntervalLong = (start: string, end: string): string =>
+  `${fmtDayLong(start)} – ${fmtDayLong(end)}`

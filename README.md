@@ -12,7 +12,7 @@ Drop in one or more Copilot usage metrics exports. Each file gets its own valida
 syntax, scope, record count, and unique enterprise/organization IDs can be reviewed before
 opening the dashboard. Additional files can be added, invalid files can be removed or ignored,
 and optional display names can be assigned to IDs. The resulting dashboard provides
-enterprise/organization comparisons, aggregate daily charts and bubble clouds, a set of
+enterprise/organization comparisons, aggregate daily and weekly charts and bubble clouds, a set of
 feature/adoption/credit/Lines of Code visualizations, top-five model/language/customization
 rankings, and five complete end-of-report disclosures. When multiple files are merged or multiple
 enterprise/organization combinations are present, a collapsed appendix repeats every
@@ -47,6 +47,17 @@ non-comparison visual for each unique combination behind dynamic tabs.
 - **Model interactions bubble cloud** — the top 7 models across the selected range, measured by
   interaction count rather than Lines of Code, with the remaining tail summarized under Others
 - **AI credits per day**
+
+**Weekly stacked charts**
+
+- **Models by interaction count by week** — the top 7 models across the selected range, with the
+  remaining tail folded into Other
+- **Surfaces by users by week** — distinct users for all eight logical surfaces; users can appear
+  in more than one surface segment
+- **AI adoption phase by week** — each user is assigned to their highest numeric phase reached
+  within that week
+- **Lines of Code changed per feature by week** — added + deleted Lines of Code for the top 7
+  attributed features, with the remaining tail folded into Other
 
 **Feature, adoption, credit, and Lines of Code visualizations**
 
@@ -160,6 +171,10 @@ Formulas and choices that are not obvious from a chart title alone:
 
 - **Feature interactions** show the top 7 features by interaction count over the selected range,
   plus a complete `Other` tail — no feature's activity is ever dropped, only folded.
+- **Weekly charts use Monday-Sunday calendar buckets**, with the first and last interval clipped
+  to the selected report/filter range. Empty weeks remain on the axis with zero values.
+- **Weekly model interactions** rank models once across the selected range, keep the top seven as
+  stable series in every bar, and fold the complete remaining interaction count into `Other`.
 - **Bubble clouds rank positive categories by value**, show the top seven, and sum the complete
   remaining tail into one `Others` bubble. Circle area is proportional to value; exact values
   remain in a persistent color legend and native tooltips when a small circle cannot fit text.
@@ -175,6 +190,9 @@ Formulas and choices that are not obvious from a chart title alone:
   daily line chart retains its four broader series. Each named bubble counts distinct users
   across the selected range, not records or user-days; the eighth-ranked surface is folded into
   `Others`.
+- **Weekly surface users evaluate all eight logical surfaces.** Users are de-duplicated within
+  each surface and week, but can count in multiple surface segments, so a stacked bar's total is
+  not a distinct-user total.
 - **The surface-count bubble cloud buckets each user once per selected range** after unioning all
   logical surface flags for that user. Bubbles cover 1 through 8 surfaces when those buckets have
   users; records with no reported surface are excluded rather than placed in a zero-surface
@@ -184,6 +202,8 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Adoption distribution** uses each user's *highest* numeric adoption phase seen in the selected
   period, not their most recent or an average — a user who ever reached Phase 3 in range counts
   as Phase 3, even if most of their days were Phase 1.
+- **Weekly adoption** applies the same highest-phase rule independently inside each week. Every
+  reporting user counts once in that week, with users lacking a usable phase placed in `Unknown`.
 - **Adoption comparisons** use the same highest-phase rule within each enterprise/organization
   group. Rows sort by Phase 4 share descending, then Phase 3, Phase 2, Phase 1, No Cohort, and
   Unknown. Every cell shows `percentage (distinct users)`.
@@ -218,6 +238,9 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Top models and languages rank by combined Lines of Code added + deleted**, but the two
   measures are always displayed as separate bars — they are never netted into one "changed
   lines" number.
+- **Weekly feature Lines of Code changed** is the magnitude `added + deleted`, not a net change.
+  Features rank once across the selected range; the top seven remain stable and the complete
+  attributed tail is folded into `Other`.
 - **Customization rankings** (custom agents, MCP servers, skills, plugins, slash commands) rank by
   interaction count.
 

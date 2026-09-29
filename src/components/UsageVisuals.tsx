@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  adoptionPhaseByWeek,
   adoptionPhaseDistribution,
   anonymousAiCreditsPerUser,
   anonymousDailyAiCreditsPerUser,
@@ -11,6 +12,8 @@ import {
   interactionsByFeatureCloud,
   interactionsByFeaturePerDay,
   interactionsByModelCloud,
+  interactionsByModelPerWeek,
+  locChangedByFeaturePerWeek,
   locByFeature,
   mcpRanking,
   pluginRanking,
@@ -21,6 +24,7 @@ import {
   usersBySurfaceCloud,
   usersBySurfaceCountCloud,
   usersBySurfaceByDay,
+  usersBySurfacePerWeek,
   type DateRange,
 } from '../data/metrics'
 import type { UserDay } from '../data/types'
@@ -38,6 +42,7 @@ import { LocDeviationChart } from './charts/LocDeviationChart'
 import { ATTRIBUTED_LOC_NOTE, LocGroupedBarChart } from './charts/LocGroupedBarChart'
 import { RankedBarChart } from './charts/RankedBarChart'
 import { SurfaceUsageChart } from './charts/SurfaceUsageChart'
+import { WeeklyStackedBarChart } from './charts/WeeklyStackedBarChart'
 
 interface Props {
   records: UserDay[]
@@ -57,8 +62,16 @@ export function UsageVisuals({
   )
   const featureInteractionCloud = useMemo(() => interactionsByFeatureCloud(records), [records])
   const modelInteractionCloud = useMemo(() => interactionsByModelCloud(records), [records])
+  const weeklyModelInteractions = useMemo(
+    () => interactionsByModelPerWeek(records, dailyBounds),
+    [records, dailyBounds],
+  )
   const surfaceDaily = useMemo(
     () => usersBySurfaceByDay(records, dailyBounds),
+    [records, dailyBounds],
+  )
+  const weeklySurfaceUsers = useMemo(
+    () => usersBySurfacePerWeek(records, dailyBounds),
     [records, dailyBounds],
   )
   const surfaceCloud = useMemo(() => usersBySurfaceCloud(records), [records])
@@ -69,7 +82,15 @@ export function UsageVisuals({
   )
 
   const featureLoc = useMemo(() => locByFeature(records), [records])
+  const weeklyFeatureLoc = useMemo(
+    () => locChangedByFeaturePerWeek(records, dailyBounds),
+    [records, dailyBounds],
+  )
   const adoptionPhases = useMemo(() => adoptionPhaseDistribution(records), [records])
+  const weeklyAdoptionPhases = useMemo(
+    () => adoptionPhaseByWeek(records, dailyBounds),
+    [records, dailyBounds],
+  )
   const avgCredits = useMemo(() => averageAiCredits(records), [records])
   const avgDailyCredits = useMemo(() => averageDailyAiCredits(daily), [daily])
   const creditDistribution = useMemo(() => anonymousAiCreditsPerUser(records), [records])
@@ -120,6 +141,16 @@ export function UsageVisuals({
         <SurfaceUsageChart data={surfaceDaily} />
       </ChartCard>
 
+      <ChartCard
+        title="Surfaces by users by week"
+        subtitle="Distinct users are counted independently for all eight surfaces; a user can appear in multiple segments, so stacked totals are not unique-user totals."
+      >
+        <WeeklyStackedBarChart
+          data={weeklySurfaceUsers}
+          emptyMessage="No surface usage recorded for this range."
+        />
+      </ChartCard>
+
       <ChartCard title="Surfaces by Users">
         <BubbleCloudChart
           data={surfaceCloud}
@@ -147,6 +178,17 @@ export function UsageVisuals({
         />
       </ChartCard>
 
+      <ChartCard
+        title="Models by interaction count by week"
+        subtitle="Stacked by the top 7 models across this range; every other model folds into Other."
+      >
+        <WeeklyStackedBarChart
+          data={weeklyModelInteractions}
+          labelFormatter={fmtMetricLabel}
+          emptyMessage="No attributed model interaction data for this range."
+        />
+      </ChartCard>
+
       <ChartCard title="Daily AI Credits Consumed">
         <AiCreditsChart data={daily} />
       </ChartCard>
@@ -161,10 +203,31 @@ export function UsageVisuals({
       </ChartCard>
 
       <ChartCard
+        title="Lines of Code changed per feature by week"
+        subtitle="Changed is added + deleted, stacked by the top 7 attributed features across this range; every other feature folds into Other."
+      >
+        <WeeklyStackedBarChart
+          data={weeklyFeatureLoc}
+          labelFormatter={fmtMetricLabel}
+          emptyMessage="No attributed feature Lines of Code data for this range."
+        />
+      </ChartCard>
+
+      <ChartCard
         title="AI Adoption per User"
         subtitle="Each user's highest adoption phase reached in the selected range, not their most recent."
       >
         <AdoptionPhaseChart data={adoptionPhases} />
+      </ChartCard>
+
+      <ChartCard
+        title="AI adoption phase by week"
+        subtitle="Each user counts once per week at their highest phase reached in that week."
+      >
+        <WeeklyStackedBarChart
+          data={weeklyAdoptionPhases}
+          emptyMessage="No adoption phase data in this range."
+        />
       </ChartCard>
 
       <div className="grid-compact">

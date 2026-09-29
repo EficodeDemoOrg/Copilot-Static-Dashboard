@@ -61,6 +61,26 @@ export interface DateRange {
   end: string
 }
 
+export interface WeeklyDateRange extends DateRange {}
+
+export interface WeeklyStackedSeries {
+  key: string
+  label: string
+  /** Remainder/no-data series use the shared neutral chart color. */
+  neutral?: boolean
+}
+
+export interface WeeklyStackedPoint {
+  weekStart: string
+  weekEnd: string
+  values: Record<string, number>
+}
+
+export interface WeeklyStackedData {
+  series: WeeklyStackedSeries[]
+  points: WeeklyStackedPoint[]
+}
+
 /**
  * `acceptances / generations` as a percentage. Null rather than 0 when there is
  * no denominator, so charts can leave a gap instead of drawing a false collapse.
@@ -132,6 +152,70 @@ function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+/** Monday containing `date`, calculated in UTC so local time and DST cannot move the bucket. */
+function calendarWeekStart(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  const daysSinceMonday = (d.getUTCDay() + 6) % 7
+  return addDays(date, -daysSinceMonday)
+}
+
+/**
+ * Monday-Sunday buckets clipped to the selected/report range. The clipped
+ * endpoints are presentation-honest: a Wednesday filter start never labels
+ * the first bar as if Monday and Tuesday were included.
+ */
+export function weeklyDateRanges(range?: DateRange): WeeklyDateRange[] {
+  if (!range || range.start > range.end) return []
+
+  const ranges: WeeklyDateRange[] = []
+  for (
+    let monday = calendarWeekStart(range.start), i = 0;
+    monday <= range.end && i < 1000;
+    monday = addDays(monday, 7), i++
+  ) {
+    const sunday = addDays(monday, 6)
+    ranges.push({
+      start: monday < range.start ? range.start : monday,
+      end: sunday > range.end ? range.end : sunday,
+    })
+  }
+  return ranges
+}
+
+function emptyWeeklyPoints(range?: DateRange): WeeklyStackedPoint[] {
+  return weeklyDateRanges(range).map(({ start, end }) => ({
+    weekStart: start,
+    weekEnd: end,
+    values: {},
+  }))
+}
+
+function pointsByCalendarWeek(points: WeeklyStackedPoint[]): Map<string, WeeklyStackedPoint> {
+  return new Map(points.map((point) => [calendarWeekStart(point.weekStart), point]))
+}
+
+function inRange(day: string, range?: DateRange): boolean {
+  return !range || (day >= range.start && day <= range.end)
+}
+
+const OTHER_WEEKLY_KEY = '__other__'
+const UNKNOWN_WEEKLY_KEY = '__unknown__'
+const surfaceKey = (key: SurfaceKey) => `surface:${key}`
+
+function rankedNames(totals: Map<string, number>, limit: number): string[] {
+  return [...totals.entries()]
+    .filter(([, total]) => total > 0)
+    .sort(([nameA, totalA], [nameB, totalB]) => totalB - totalA || nameA.localeCompare(nameB))
+    .slice(0, limit)
+    .map(([name]) => name)
+}
+
+function fillWeeklySeries(points: WeeklyStackedPoint[], series: WeeklyStackedSeries[]): void {
+  for (const point of points) {
+    for (const item of series) point.values[item.key] ??= 0
+  }
 }
 
 /**
@@ -416,6 +500,229 @@ export function usersBySurfaceCountCloud(records: UserDay[]): BubbleCloudDatum[]
   }
 
   return bubbles
+}
+
+/**
+ * Weekly model interactions. Ranking is fixed across the selected range so a
+ * model keeps the same stack position and color in every bar.
+ */
+export function interactionsByModelPerWeek(
+  records: UserDay[],
+  bounds?: DateRange,
+  limit = 7,
+): WeeklyStackedData {
+  const range = bounds ?? dateRange(records)
+  const points = emptyWeeklyPoints(range)
+  const totalByName = new Map<string, number>()
+
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+    for (const model of record.totalsByModelFeature) {
+      totalByName.set(model.name, (totalByName.get(model.name) ?? 0) + model.interactions)
+    }
+  }
+
+  const names = rankedNames(totalByName, limit)
+  const topNames = new Set(names)
+  const keyByName = new Map(names.map((name, index) => [name, `category-${index}`]))
+  const hasOther = [...totalByName.entries()].some(([name, total]) => total > 0 && !topNames.has(name))
+  const series: WeeklyStackedSeries[] = names.map((name, index) => ({
+    key: `category-${index}`,
+    label: name,
+  }))
+  if (hasOther) series.push({ key: OTHER_WEEKLY_KEY, label: 'Other', neutral: true })
+
+  const byWeek = pointsByCalendarWeek(points)
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+    const point = byWeek.get(calendarWeekStart(record.day))
+    if (!point) continue
+    for (const model of record.totalsByModelFeature) {
+      if (model.interactions <= 0) continue
+      const key = keyByName.get(model.name) ?? OTHER_WEEKLY_KEY
+      if (key === OTHER_WEEKLY_KEY && !hasOther) continue
+      point.values[key] = (point.values[key] ?? 0) + model.interactions
+    }
+  }
+
+  fillWeeklySeries(points, series)
+  return { series, points }
+}
+
+/**
+ * Distinct users per logical surface and calendar week. Users are de-duplicated
+ * independently for each surface; the stacked total is therefore a sum of
+ * surface audiences, not a distinct-user total.
+ */
+export function usersBySurfacePerWeek(records: UserDay[], bounds?: DateRange): WeeklyStackedData {
+  const range = bounds ?? dateRange(records)
+  const points = emptyWeeklyPoints(range)
+  const usersByWeek = new Map<string, Map<SurfaceKey, Set<number>>>()
+
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+    const week = calendarWeekStart(record.day)
+    let bySurface = usersByWeek.get(week)
+    if (!bySurface) {
+      bySurface = new Map()
+      usersByWeek.set(week, bySurface)
+    }
+    for (const surface of SURFACE_DEFINITIONS) {
+      if (!surface.isUsed(record)) continue
+      let users = bySurface.get(surface.key)
+      if (!users) {
+        users = new Set()
+        bySurface.set(surface.key, users)
+      }
+      users.add(record.userId)
+    }
+  }
+
+  for (const point of points) {
+    const bySurface = usersByWeek.get(calendarWeekStart(point.weekStart))
+    for (const surface of SURFACE_DEFINITIONS) {
+      point.values[surfaceKey(surface.key)] = bySurface?.get(surface.key)?.size ?? 0
+    }
+  }
+
+  return {
+    series: SURFACE_DEFINITIONS.map((surface) => ({
+      key: surfaceKey(surface.key),
+      label: surface.label,
+    })),
+    points,
+  }
+}
+
+interface WeeklyAdoptionPhase {
+  label: string
+  phaseNumber: number
+}
+
+const weeklyAdoptionIdentity = (phase: WeeklyAdoptionPhase) =>
+  `phase:${phase.phaseNumber}:${phase.label}`
+
+/**
+ * Weekly adoption distribution. Each reporting user appears once in each week
+ * at their highest numeric phase observed in that week; users with no usable
+ * phase in the week appear in the explicit Unknown segment.
+ */
+export function adoptionPhaseByWeek(records: UserDay[], bounds?: DateRange): WeeklyStackedData {
+  const range = bounds ?? dateRange(records)
+  const points = emptyWeeklyPoints(range)
+  const phasesByWeek = new Map<string, Map<number, WeeklyAdoptionPhase | undefined>>()
+
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+    const week = calendarWeekStart(record.day)
+    let users = phasesByWeek.get(week)
+    if (!users) {
+      users = new Map()
+      phasesByWeek.set(week, users)
+    }
+
+    const current = users.get(record.userId)
+    if (!users.has(record.userId)) users.set(record.userId, undefined)
+    if (record.adoptionPhaseNumber === undefined) continue
+
+    const candidate = {
+      phaseNumber: record.adoptionPhaseNumber,
+      label: record.adoptionPhase ?? String(record.adoptionPhaseNumber),
+    }
+    if (
+      !current ||
+      candidate.phaseNumber > current.phaseNumber ||
+      (candidate.phaseNumber === current.phaseNumber && candidate.label.localeCompare(current.label) < 0)
+    ) {
+      users.set(record.userId, candidate)
+    }
+  }
+
+  const observedPhases = new Map<string, WeeklyAdoptionPhase>()
+  let hasUnknown = false
+  const byWeek = pointsByCalendarWeek(points)
+  for (const [week, users] of phasesByWeek) {
+    const point = byWeek.get(week)
+    if (!point) continue
+    for (const phase of users.values()) {
+      if (!phase) {
+        point.values[UNKNOWN_WEEKLY_KEY] = (point.values[UNKNOWN_WEEKLY_KEY] ?? 0) + 1
+        hasUnknown = true
+        continue
+      }
+      const key = weeklyAdoptionIdentity(phase)
+      observedPhases.set(key, phase)
+      point.values[key] = (point.values[key] ?? 0) + 1
+    }
+  }
+
+  const orderedPhases = [...observedPhases.entries()].sort(
+    ([, a], [, b]) => a.phaseNumber - b.phaseNumber || a.label.localeCompare(b.label),
+  )
+  const series: WeeklyStackedSeries[] = orderedPhases.map(([, phase], index) => ({
+    key: `phase-${index}`,
+    label: phase.label,
+  }))
+  if (hasUnknown) series.push({ key: UNKNOWN_WEEKLY_KEY, label: UNKNOWN_ADOPTION_PHASE, neutral: true })
+
+  for (const point of points) {
+    const values: Record<string, number> = {}
+    orderedPhases.forEach(([identity], index) => {
+      values[`phase-${index}`] = point.values[identity] ?? 0
+    })
+    if (hasUnknown) values[UNKNOWN_WEEKLY_KEY] = point.values[UNKNOWN_WEEKLY_KEY] ?? 0
+    point.values = values
+  }
+  return { series, points }
+}
+
+/**
+ * Weekly attributed Lines of Code changed by feature. "Changed" deliberately
+ * means the magnitude `added + deleted`, never a net or acceptance measure.
+ */
+export function locChangedByFeaturePerWeek(
+  records: UserDay[],
+  bounds?: DateRange,
+  limit = 7,
+): WeeklyStackedData {
+  const range = bounds ?? dateRange(records)
+  const points = emptyWeeklyPoints(range)
+  const totalByName = new Map<string, number>()
+
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+    for (const feature of record.totalsByFeature) {
+      const changed = feature.locAdded + feature.locDeleted
+      totalByName.set(feature.name, (totalByName.get(feature.name) ?? 0) + changed)
+    }
+  }
+
+  const names = rankedNames(totalByName, limit)
+  const topNames = new Set(names)
+  const keyByName = new Map(names.map((name, index) => [name, `category-${index}`]))
+  const hasOther = [...totalByName.entries()].some(([name, total]) => total > 0 && !topNames.has(name))
+  const series: WeeklyStackedSeries[] = names.map((name, index) => ({
+    key: `category-${index}`,
+    label: name,
+  }))
+  if (hasOther) series.push({ key: OTHER_WEEKLY_KEY, label: 'Other', neutral: true })
+
+  const byWeek = pointsByCalendarWeek(points)
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+    const point = byWeek.get(calendarWeekStart(record.day))
+    if (!point) continue
+    for (const feature of record.totalsByFeature) {
+      const changed = feature.locAdded + feature.locDeleted
+      if (changed <= 0) continue
+      const key = keyByName.get(feature.name) ?? OTHER_WEEKLY_KEY
+      if (key === OTHER_WEEKLY_KEY && !hasOther) continue
+      point.values[key] = (point.values[key] ?? 0) + changed
+    }
+  }
+
+  fillWeeklySeries(points, series)
+  return { series, points }
 }
 
 /**

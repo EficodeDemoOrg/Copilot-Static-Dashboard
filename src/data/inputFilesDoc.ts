@@ -8,6 +8,8 @@ This dashboard visualizes GitHub Copilot usage metrics. It requires NDJSON files
 - Structure: One JSON object per line
 - Each line represents one user's metrics for one day
 
+Pretty-printed exports with one JSON object spanning multiple lines are detected automatically when every object is complete. They are interpreted in browser memory only; no corrected file is created or stored.
+
 ## Where to Get Them?
 
 ### Option 1: Enterprise Copilot Metrics

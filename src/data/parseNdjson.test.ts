@@ -43,6 +43,124 @@ describe('validateNdjsonText', () => {
     expect(result.organizationIds).toEqual(['org-1', 'org-2'])
   })
 
+  it('recovers a sequence of pretty-printed JSON objects in memory', () => {
+    const result = validateNdjsonText(
+      [
+        usageRecord({ organization_id: 'org-1' }),
+        usageRecord({ user_id: 102, organization_id: 'org-1' }),
+      ]
+        .map((record) => JSON.stringify(record, null, 2))
+        .join('\n'),
+      'pretty.json',
+    )
+
+    expect(result.valid).toBe(true)
+    expect(result.scope).toBe('organization')
+    expect(result.recordCount).toBe(2)
+    expect(result.warnings).toEqual([
+      'pretty.json: Pretty-printed JSON was interpreted as 2 NDJSON records in memory; no corrected file was created or stored.',
+    ])
+  })
+
+  it('recovers mixed compact and pretty-printed objects', () => {
+    const result = validateNdjsonText(
+      [
+        JSON.stringify(usageRecord()),
+        JSON.stringify(usageRecord({ user_id: 102 }), null, 2),
+      ].join('\n'),
+      'mixed-format.json',
+    )
+
+    expect(result.valid).toBe(true)
+    expect(result.recordCount).toBe(2)
+    expect(result.warnings).toHaveLength(1)
+  })
+
+  it('ignores structural characters inside strings while recovering nested JSON', () => {
+    const result = validateNdjsonText(
+      JSON.stringify(
+        usageRecord({
+          metadata: { nested: [{ note: 'Contains } and ] plus a "quoted" value.' }] },
+        }),
+        null,
+        2,
+      ),
+      'nested.json',
+    )
+
+    expect(result.valid).toBe(true)
+    expect(result.recordCount).toBe(1)
+    expect(result.warnings).toHaveLength(1)
+  })
+
+  it('does not warn for canonical line-delimited JSON', () => {
+    const result = validateNdjsonText(ndjson(usageRecord()), 'canonical.ndjson')
+
+    expect(result.valid).toBe(true)
+    expect(result.warnings).toEqual([])
+  })
+
+  it('rejects an incomplete pretty-printed sequence without partial recovery', () => {
+    const result = validateNdjsonText(
+      `${JSON.stringify(usageRecord(), null, 2)}\n{"day":`,
+      'truncated.json',
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.recordCount).toBe(0)
+    expect(result.warnings).toEqual([])
+    expect(result.issues[0]).toContain('Invalid JSON')
+  })
+
+  it('rejects non-whitespace content between pretty-printed objects', () => {
+    const result = validateNdjsonText(
+      `${JSON.stringify(usageRecord(), null, 2)}\ngarbage\n${JSON.stringify(
+        usageRecord({ user_id: 102 }),
+        null,
+        2,
+      )}`,
+      'garbage.json',
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.recordCount).toBe(0)
+    expect(result.warnings).toEqual([])
+    expect(result.issues[0]).toContain('Invalid JSON')
+  })
+
+  it('rejects mismatched delimiters without partial recovery', () => {
+    const result = validateNdjsonText(
+      '{\n  "day": "2026-09-01",\n  "user_id": 101,\n  "nested": [}\n}',
+      'mismatched.json',
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.recordCount).toBe(0)
+    expect(result.warnings).toEqual([])
+  })
+
+  it('does not recover a pretty-printed top-level array', () => {
+    const result = validateNdjsonText(
+      JSON.stringify([usageRecord()], null, 2),
+      'array.json',
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.recordCount).toBe(0)
+    expect(result.warnings).toEqual([])
+  })
+
+  it('keeps a recovery warning when schema validation finds another issue', () => {
+    const result = validateNdjsonText(
+      JSON.stringify(usageRecord({ enterprise_id: '' }), null, 2),
+      'missing-enterprise.json',
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.issues).toContain('Missing enterprise_id on line 1.')
+    expect(result.warnings).toHaveLength(1)
+  })
+
   it('fails the whole file when one line is malformed JSON', () => {
     const result = validateNdjsonText(`${ndjson(usageRecord())}\n{"day":`, 'malformed.ndjson')
 
@@ -117,6 +235,17 @@ describe('mergeValidatedFiles', () => {
 
     expect(dataset.fileNames).toEqual(['valid.ndjson'])
     expect(dataset.records).toHaveLength(1)
+  })
+
+  it('propagates in-memory recovery warnings', () => {
+    const result = validateNdjsonText(
+      JSON.stringify(usageRecord(), null, 2),
+      'pretty.json',
+    )
+
+    const dataset = mergeValidatedFiles([result])
+
+    expect(dataset.warnings).toEqual(result.warnings)
   })
 
   it('de-duplicates matching group, user, and day records across files', () => {

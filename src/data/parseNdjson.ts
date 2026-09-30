@@ -27,11 +27,17 @@ interface ParsedLine {
   malformed: boolean
 }
 
+interface ParsedDocument {
+  lines: ParsedLine[]
+  malformedLines: number[]
+}
+
 interface MergeableFile {
   fileName: string
   records: UserDay[]
   reportWindow?: ReportWindow
   adapterId: string
+  warnings: string[]
 }
 
 type JsonObject = Record<string, unknown>
@@ -56,6 +62,84 @@ const lineSummary = (lineNumbers: number[]): string => {
 
 const plural = (count: number, singular: string): string =>
   `${count.toLocaleString()} ${singular}${count === 1 ? '' : 's'}`
+
+function parseLineDelimitedJson(text: string): ParsedDocument {
+  const lines: ParsedLine[] = []
+  const malformedLines: number[] = []
+
+  for (const [index, line] of text.split(/\r?\n/).entries()) {
+    const trimmed = line.trim()
+    if (trimmed === '') continue
+    try {
+      lines.push({ lineNumber: index + 1, value: JSON.parse(trimmed), malformed: false })
+    } catch {
+      malformedLines.push(index + 1)
+      lines.push({ lineNumber: index + 1, malformed: true })
+    }
+  }
+
+  return { lines, malformedLines }
+}
+
+function parseJsonObjectSequence(text: string): ParsedLine[] | undefined {
+  const lines: ParsedLine[] = []
+  let index = 0
+  let lineNumber = 1
+
+  while (index < text.length) {
+    while (index < text.length && /\s/.test(text[index]!)) {
+      if (text[index] === '\n') lineNumber++
+      index++
+    }
+    if (index === text.length) break
+    if (text[index] !== '{') return undefined
+
+    const start = index
+    const startLine = lineNumber
+    const expectedClosers: string[] = []
+    let inString = false
+    let escaped = false
+    let complete = false
+
+    while (index < text.length) {
+      const character = text[index]!
+      if (character === '\n') lineNumber++
+
+      if (inString) {
+        if (escaped) escaped = false
+        else if (character === '\\') escaped = true
+        else if (character === '"') inString = false
+      } else if (character === '"') {
+        inString = true
+      } else if (character === '{') {
+        expectedClosers.push('}')
+      } else if (character === '[') {
+        expectedClosers.push(']')
+      } else if (character === '}' || character === ']') {
+        if (expectedClosers.pop() !== character) return undefined
+        if (expectedClosers.length === 0) {
+          index++
+          let value: unknown
+          try {
+            value = JSON.parse(text.slice(start, index))
+          } catch {
+            return undefined
+          }
+          if (!isObject(value)) return undefined
+          lines.push({ lineNumber: startLine, value, malformed: false })
+          complete = true
+          break
+        }
+      }
+
+      index++
+    }
+
+    if (!complete) return undefined
+  }
+
+  return lines.length > 0 ? lines : undefined
+}
 
 /** Widen `into` to also cover `next`. */
 function unionWindow(
@@ -110,6 +194,7 @@ function invalidResult(
     enterpriseIds: [],
     organizationIds: [],
     issues,
+    warnings: [],
     records: [],
     ...overrides,
   }
@@ -120,17 +205,17 @@ function invalidResult(
  * consulted: syntax and record content determine whether the file is usable.
  */
 export function validateNdjsonText(text: string, fileName: string): FileValidationResult {
-  const parsedLines: ParsedLine[] = []
-  const malformedLines: number[] = []
+  let { lines: parsedLines, malformedLines } = parseLineDelimitedJson(text)
+  const warnings: string[] = []
 
-  for (const [index, line] of text.split(/\r?\n/).entries()) {
-    const trimmed = line.trim()
-    if (trimmed === '') continue
-    try {
-      parsedLines.push({ lineNumber: index + 1, value: JSON.parse(trimmed), malformed: false })
-    } catch {
-      malformedLines.push(index + 1)
-      parsedLines.push({ lineNumber: index + 1, malformed: true })
+  if (malformedLines.length > 0) {
+    const recoveredLines = parseJsonObjectSequence(text)
+    if (recoveredLines) {
+      parsedLines = recoveredLines
+      malformedLines = []
+      warnings.push(
+        `${fileName}: Pretty-printed JSON was interpreted as ${plural(recoveredLines.length, 'NDJSON record')} in memory; no corrected file was created or stored.`,
+      )
     }
   }
 
@@ -153,7 +238,7 @@ export function validateNdjsonText(text: string, fileName: string): FileValidati
 
   if (!adapter) {
     issues.push(unrecognizedFormatIssue(parsedLines))
-    return invalidResult(fileName, issues, discoveredIds)
+    return invalidResult(fileName, issues, { ...discoveredIds, warnings })
   }
 
   const records: UserDay[] = []
@@ -221,6 +306,7 @@ export function validateNdjsonText(text: string, fileName: string): FileValidati
     enterpriseIds: discoveredIds.enterpriseIds,
     organizationIds: discoveredIds.organizationIds,
     issues,
+    warnings,
     records: valid ? records : [],
     reportWindow,
     adapterId: adapter.id,
@@ -282,6 +368,7 @@ export function mergeValidatedFiles(
       records: result.records,
       reportWindow: result.reportWindow,
       adapterId: result.adapterId,
+      warnings: result.warnings,
     })),
     normalizeEntityAliases(aliases, enterpriseIds, organizationIds),
   )
@@ -310,7 +397,7 @@ function mergeResults(parsed: MergeableFile[], aliases: EntityAliases): Dataset 
     throw new ReportFormatError(`${adapter.label} recognized, but no usable records were found.`, [])
   }
 
-  const warnings: string[] = []
+  const warnings = parsed.flatMap((file) => file.warnings)
   if (duplicates > 0) {
     warnings.push(
       `${plural(duplicates, 'duplicate record')} dropped (same enterprise, organization, user, and day seen more than once).`,

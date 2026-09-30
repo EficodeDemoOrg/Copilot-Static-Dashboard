@@ -110,6 +110,7 @@ export interface FileValidationResult {
   enterpriseIds: string[]
   organizationIds: string[]
   issues: string[]
+  warnings: string[]
   records: UserDay[]
   reportWindow?: ReportWindow
   adapterId?: string

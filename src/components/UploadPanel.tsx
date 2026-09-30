@@ -108,6 +108,17 @@ function FileCard({ item, onRemove }: { item: UploadFileItem; onRemove: (id: str
               />
             </div>
 
+            {result.warnings.length > 0 && (
+              <div className="upload-file__warnings" role="status">
+                <strong>Adjusted in memory</strong>
+                <ul>
+                  {result.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {!result.valid && (
               <div className="upload-file__errors" role="alert">
                 <strong>What went wrong</strong>

@@ -350,21 +350,27 @@ code {
 }
 .upload-file__ids code { font-size: 11px; }
 .upload-file__empty { color: var(--text-muted); font-size: 12px; }
-.upload-file__errors {
+.upload-file__errors,
+.upload-file__warnings {
   margin-top: 14px;
   padding: 10px 12px;
-  border: 1px solid var(--series-8);
+  border: 1px solid;
   border-radius: 8px;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.45;
 }
-.upload-file__errors strong { color: var(--text-primary); }
-.upload-file__errors ul {
+.upload-file__errors { border-color: var(--series-8); }
+.upload-file__warnings { border-color: var(--warning); }
+.upload-file__errors strong,
+.upload-file__warnings strong { color: var(--text-primary); }
+.upload-file__errors ul,
+.upload-file__warnings ul {
   margin: 5px 0 0;
   padding-left: 18px;
 }
-.upload-file__errors li + li { margin-top: 3px; }
+.upload-file__errors li + li,
+.upload-file__warnings li + li { margin-top: 3px; }
 
 .translations {
   display: grid;

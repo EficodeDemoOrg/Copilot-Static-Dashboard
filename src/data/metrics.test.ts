@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  adoptionPhaseFlowByWeek,
   adoptionPhaseByWeek,
   anonymousUserCreditsPerUser,
   correlationStrength,
@@ -17,6 +18,7 @@ import {
   userCreditCorrelation,
   userCreditTrendSegment,
   weeklyDateRanges,
+  type AdoptionPhaseFlowData,
   type WeeklyStackedData,
 } from './metrics'
 import { validateNdjsonText } from './parseNdjson'
@@ -45,6 +47,29 @@ function weeklyValue(data: WeeklyStackedData, pointIndex: number, label: string)
   const series = data.series.find((candidate) => candidate.label === label)
   expect(series, `Missing weekly series ${label}`).toBeDefined()
   return data.points[pointIndex]?.values[series!.key] ?? 0
+}
+
+function flowNode(data: AdoptionPhaseFlowData, periodIndex: number, label: string) {
+  const node = data.nodes.find(
+    (candidate) => candidate.periodIndex === periodIndex && candidate.label === label,
+  )
+  expect(node, `Missing flow node ${periodIndex}:${label}`).toBeDefined()
+  return node!
+}
+
+function flowValue(
+  data: AdoptionPhaseFlowData,
+  periodIndex: number,
+  sourceLabel: string,
+  targetLabel: string,
+): number {
+  const source = flowNode(data, periodIndex, sourceLabel)
+  const target = flowNode(data, periodIndex + 1, targetLabel)
+  return (
+    data.links.find(
+      (candidate) => candidate.source === source.id && candidate.target === target.id,
+    )?.users ?? 0
+  )
 }
 
 describe('interaction bubble clouds', () => {
@@ -479,6 +504,99 @@ describe('weekly stacked aggregations', () => {
     expect(weeklyValue(data, 0, 'Phase 2')).toBe(0)
     expect(weeklyValue(data, 0, 'Unknown')).toBe(1)
     expect(weeklyValue(data, 1, 'Phase 2')).toBe(1)
+  })
+
+  it('tracks each cohort user through phases, Unknown, and missing-record weeks', () => {
+    const records = recordsFrom(
+      {
+        day: '2026-08-31',
+        user_id: 99,
+        ai_adoption_phase: { phase: 'Phase 4', phase_number: 4 },
+      },
+      {
+        day: '2026-09-01',
+        user_id: 10,
+        ai_adoption_phase: { phase: 'Phase 1', phase_number: 1 },
+      },
+      {
+        day: '2026-09-03',
+        user_id: 10,
+        ai_adoption_phase: { phase: 'Phase 2', phase_number: 2 },
+      },
+      { day: '2026-09-02', user_id: 20 },
+      {
+        day: '2026-09-04',
+        user_id: 30,
+        ai_adoption_phase: { phase: 'No Cohort', phase_number: 0 },
+      },
+      {
+        day: '2026-09-08',
+        user_id: 20,
+        ai_adoption_phase: { phase: 'Phase 3', phase_number: 3 },
+      },
+      {
+        day: '2026-09-09',
+        user_id: 30,
+        ai_adoption_phase: { phase: 'No Cohort', phase_number: 0 },
+      },
+      {
+        day: '2026-09-15',
+        user_id: 10,
+        ai_adoption_phase: { phase: 'Phase 1', phase_number: 1 },
+      },
+      {
+        day: '2026-09-16',
+        user_id: 20,
+        ai_adoption_phase: { phase: 'Phase 2', phase_number: 2 },
+      },
+      {
+        day: '2026-09-17',
+        user_id: 40,
+        ai_adoption_phase: { phase: 'Phase 1', phase_number: 1 },
+      },
+    )
+
+    const data = adoptionPhaseFlowByWeek(records, {
+      start: '2026-09-01',
+      end: '2026-09-20',
+    })
+
+    expect(data.periods).toEqual([
+      { start: '2026-09-01', end: '2026-09-06' },
+      { start: '2026-09-07', end: '2026-09-13' },
+      { start: '2026-09-14', end: '2026-09-20' },
+    ])
+    expect(data.cohortUsers).toBe(4)
+    expect(data.nodes.filter((node) => node.periodIndex === 0).map((node) => node.label)).toEqual([
+      'Phase 2',
+      'No Cohort',
+      'Unknown',
+      'Not active',
+    ])
+    for (let periodIndex = 0; periodIndex < data.periods.length; periodIndex++) {
+      expect(
+        data.nodes
+          .filter((node) => node.periodIndex === periodIndex)
+          .reduce((total, node) => total + node.users, 0),
+      ).toBe(data.cohortUsers)
+    }
+    expect(flowNode(data, 0, 'Phase 2').users).toBe(1)
+    expect(flowValue(data, 0, 'Phase 2', 'Not active')).toBe(1)
+    expect(flowValue(data, 0, 'Unknown', 'Phase 3')).toBe(1)
+    expect(flowValue(data, 0, 'No Cohort', 'No Cohort')).toBe(1)
+    expect(flowValue(data, 0, 'Not active', 'Not active')).toBe(1)
+    expect(flowValue(data, 1, 'Not active', 'Phase 1')).toBe(2)
+    expect(flowValue(data, 1, 'Phase 3', 'Phase 2')).toBe(1)
+    expect(flowValue(data, 1, 'No Cohort', 'Not active')).toBe(1)
+    expect(data.links.filter((link) => link.source.startsWith('0:')).reduce(
+      (total, link) => total + link.users,
+      0,
+    )).toBe(data.cohortUsers)
+    expect(data.links.filter((link) => link.source.startsWith('1:')).reduce(
+      (total, link) => total + link.users,
+      0,
+    )).toBe(data.cohortUsers)
+    expect(data.nodes.some((node) => node.label === 'Phase 4')).toBe(false)
   })
 
   it('combines added and deleted LoC and folds features below the top seven', () => {

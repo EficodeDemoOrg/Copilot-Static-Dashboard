@@ -920,6 +920,64 @@ code {
 /* Recharts fills are inline styles on SVG; keep them exact when printing. */
 .recharts-wrapper { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
+/* ---------- Adoption phase flow ---------- */
+.adoption-flow { min-width: 0; }
+.adoption-flow__scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+}
+.adoption-flow__scroll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.adoption-flow__timeline { min-width: 100%; }
+.adoption-flow__period {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.adoption-flow__node-label {
+  fill: var(--text-primary);
+  stroke: var(--surface-1);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.adoption-flow__link {
+  stroke-linecap: butt;
+  stroke-opacity: 0.32;
+  transition: stroke-opacity 120ms;
+}
+.adoption-flow__link:hover { stroke-opacity: 0.62; }
+.adoption-flow__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.adoption-flow__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.adoption-flow__legend-swatch {
+  width: 12px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
 /* ---------- Bubble clouds ---------- */
 .bubble-cloud-chart {
   min-width: 0;

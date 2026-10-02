@@ -56,6 +56,8 @@ non-comparison visual for each unique combination behind dynamic tabs.
   in more than one surface segment
 - **AI adoption phase by week** — each user is assigned to their highest numeric phase reached
   within that week
+- **AI adoption flow over time** — proportional bands follow the same anonymous users between
+  adjacent weekly phases, including explicit Unknown and Not active states
 - **Lines of Code changed per feature by week** — added + deleted Lines of Code for the top 7
   attributed features, with the remaining tail folded into Other
 
@@ -211,6 +213,12 @@ Formulas and choices that are not obvious from a chart title alone:
   as Phase 3, even if most of their days were Phase 1.
 - **Weekly adoption** applies the same highest-phase rule independently inside each week. Every
   reporting user counts once in that week, with users lacking a usable phase placed in `Unknown`.
+- **Weekly adoption flow uses a fixed cohort** of every distinct user seen anywhere in the
+  selected range. Each user follows exactly one band between every pair of adjacent weeks:
+  their highest phase for that week, `Unknown` when they have records but no usable phase, or
+  `Not active` when they have no record in that week. A zero-activity record still counts as a
+  record and is not `Not active`. Long ranges retain every weekly column and scroll horizontally
+  on screen.
 - **Adoption comparisons** use the same highest-phase rule within each enterprise/organization
   group. Rows sort by Phase 4 share descending, then Phase 3, Phase 2, Phase 1, No Cohort, and
   Unknown. Every cell shows `percentage (distinct users)`.

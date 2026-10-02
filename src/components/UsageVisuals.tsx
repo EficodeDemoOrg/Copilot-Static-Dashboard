@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  adoptionPhaseFlowByWeek,
   adoptionPhaseByWeek,
   adoptionPhaseDistribution,
   anonymousAiCreditsPerUser,
@@ -34,6 +35,7 @@ import { fmtMetricLabel } from '../format'
 import { ChartCard } from './ChartCard'
 import { RankingDisclosure } from './RankingDisclosure'
 import { AdoptionPhaseChart } from './charts/AdoptionPhaseChart'
+import { AdoptionPhaseFlowChart } from './charts/AdoptionPhaseFlowChart'
 import { AiCreditsChart } from './charts/AiCreditsChart'
 import { AnonymousCreditDotPlot, DAILY_CREDIT_DOT_PLOT_NOTE } from './charts/AnonymousCreditDotPlot'
 import { AverageAiCreditsStat } from './charts/AverageAiCreditsStat'
@@ -92,6 +94,10 @@ export function UsageVisuals({
   const adoptionPhases = useMemo(() => adoptionPhaseDistribution(records), [records])
   const weeklyAdoptionPhases = useMemo(
     () => adoptionPhaseByWeek(records, dailyBounds),
+    [records, dailyBounds],
+  )
+  const adoptionPhaseFlow = useMemo(
+    () => adoptionPhaseFlowByWeek(records, dailyBounds),
     [records, dailyBounds],
   )
   const avgCredits = useMemo(() => averageAiCredits(records), [records])
@@ -239,6 +245,13 @@ export function UsageVisuals({
           data={weeklyAdoptionPhases}
           emptyMessage="No adoption phase data in this range."
         />
+      </ChartCard>
+
+      <ChartCard
+        title="AI adoption flow over time"
+        subtitle="Each band follows anonymous users between their highest phase in adjacent weeks. Unknown means a record had no usable phase; Not active means no record in that week."
+      >
+        <AdoptionPhaseFlowChart data={adoptionPhaseFlow} />
       </ChartCard>
 
       <div className="grid-compact">

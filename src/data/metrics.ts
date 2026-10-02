@@ -81,6 +81,33 @@ export interface WeeklyStackedData {
   points: WeeklyStackedPoint[]
 }
 
+export type AdoptionFlowStateKind = 'phase' | 'unknown' | 'inactive'
+
+export interface AdoptionFlowNode {
+  id: string
+  periodIndex: number
+  weekStart: string
+  weekEnd: string
+  stateKey: string
+  label: string
+  phaseNumber?: number
+  kind: AdoptionFlowStateKind
+  users: number
+}
+
+export interface AdoptionFlowLink {
+  source: string
+  target: string
+  users: number
+}
+
+export interface AdoptionPhaseFlowData {
+  periods: WeeklyDateRange[]
+  nodes: AdoptionFlowNode[]
+  links: AdoptionFlowLink[]
+  cohortUsers: number
+}
+
 export const CREDIT_CYCLE_DAYS = 28
 export const USD_PER_AI_CREDIT = 0.01
 export const SPENDING_CAPS_USD = [
@@ -663,23 +690,27 @@ interface WeeklyAdoptionPhase {
 const weeklyAdoptionIdentity = (phase: WeeklyAdoptionPhase) =>
   `phase:${phase.phaseNumber}:${phase.label}`
 
-/**
- * Weekly adoption distribution. Each reporting user appears once in each week
- * at their highest numeric phase observed in that week; users with no usable
- * phase in the week appear in the explicit Unknown segment.
- */
-export function adoptionPhaseByWeek(records: UserDay[], bounds?: DateRange): WeeklyStackedData {
-  const range = bounds ?? dateRange(records)
-  const points = emptyWeeklyPoints(range)
-  const phasesByWeek = new Map<string, Map<number, WeeklyAdoptionPhase | undefined>>()
+interface WeeklyAdoptionAggregation {
+  usersByWeek: Map<string, Map<number, WeeklyAdoptionPhase | undefined>>
+  cohortUserIds: Set<number>
+}
+
+function weeklyAdoptionAggregation(
+  records: UserDay[],
+  range?: DateRange,
+): WeeklyAdoptionAggregation {
+  const usersByWeek = new Map<string, Map<number, WeeklyAdoptionPhase | undefined>>()
+  const cohortUserIds = new Set<number>()
 
   for (const record of records) {
     if (!inRange(record.day, range)) continue
+    cohortUserIds.add(record.userId)
+
     const week = calendarWeekStart(record.day)
-    let users = phasesByWeek.get(week)
+    let users = usersByWeek.get(week)
     if (!users) {
       users = new Map()
-      phasesByWeek.set(week, users)
+      usersByWeek.set(week, users)
     }
 
     const current = users.get(record.userId)
@@ -693,11 +724,25 @@ export function adoptionPhaseByWeek(records: UserDay[], bounds?: DateRange): Wee
     if (
       !current ||
       candidate.phaseNumber > current.phaseNumber ||
-      (candidate.phaseNumber === current.phaseNumber && candidate.label.localeCompare(current.label) < 0)
+      (candidate.phaseNumber === current.phaseNumber &&
+        candidate.label.localeCompare(current.label) < 0)
     ) {
       users.set(record.userId, candidate)
     }
   }
+
+  return { usersByWeek, cohortUserIds }
+}
+
+/**
+ * Weekly adoption distribution. Each reporting user appears once in each week
+ * at their highest numeric phase observed in that week; users with no usable
+ * phase in the week appear in the explicit Unknown segment.
+ */
+export function adoptionPhaseByWeek(records: UserDay[], bounds?: DateRange): WeeklyStackedData {
+  const range = bounds ?? dateRange(records)
+  const points = emptyWeeklyPoints(range)
+  const { usersByWeek: phasesByWeek } = weeklyAdoptionAggregation(records, range)
 
   const observedPhases = new Map<string, WeeklyAdoptionPhase>()
   let hasUnknown = false
@@ -735,6 +780,156 @@ export function adoptionPhaseByWeek(records: UserDay[], bounds?: DateRange): Wee
     point.values = values
   }
   return { series, points }
+}
+
+const INACTIVE_ADOPTION_PHASE = 'Not active'
+const INACTIVE_ADOPTION_KEY = '__inactive__'
+
+interface AdoptionFlowStateDefinition {
+  stateKey: string
+  label: string
+  phaseNumber?: number
+  kind: AdoptionFlowStateKind
+}
+
+const adoptionFlowNodeId = (periodIndex: number, stateKey: string) =>
+  `${periodIndex}:${stateKey}`
+
+function compareAdoptionFlowStates(
+  a: AdoptionFlowStateDefinition,
+  b: AdoptionFlowStateDefinition,
+): number {
+  if (a.kind === 'phase' && b.kind === 'phase') {
+    return (
+      (b.phaseNumber ?? Number.NEGATIVE_INFINITY) -
+        (a.phaseNumber ?? Number.NEGATIVE_INFINITY) ||
+      a.label.localeCompare(b.label)
+    )
+  }
+  if (a.kind === 'phase') return -1
+  if (b.kind === 'phase') return 1
+  if (a.kind === b.kind) return a.label.localeCompare(b.label)
+  return a.kind === 'unknown' ? -1 : 1
+}
+
+/**
+ * Anonymous user movement between adjacent calendar weeks. The cohort is every
+ * distinct user seen anywhere in the selected range, so each week has the same
+ * total population. A user with records but no usable phase is `Unknown`; a
+ * cohort user with no record in a week is `Not active`.
+ */
+export function adoptionPhaseFlowByWeek(
+  records: UserDay[],
+  bounds?: DateRange,
+): AdoptionPhaseFlowData {
+  const range = bounds ?? dateRange(records)
+  const periods = weeklyDateRanges(range)
+  const { usersByWeek, cohortUserIds } = weeklyAdoptionAggregation(records, range)
+  const empty: AdoptionPhaseFlowData = {
+    periods,
+    nodes: [],
+    links: [],
+    cohortUsers: cohortUserIds.size,
+  }
+  if (periods.length === 0 || cohortUserIds.size === 0) return empty
+
+  const definitions = new Map<string, AdoptionFlowStateDefinition>()
+  const userStatesByPeriod: Array<Map<number, string>> = []
+  const nodes: AdoptionFlowNode[] = []
+
+  periods.forEach((period, periodIndex) => {
+    const reportedUsers = usersByWeek.get(calendarWeekStart(period.start))
+    const counts = new Map<string, number>()
+    const userStates = new Map<number, string>()
+
+    for (const userId of cohortUserIds) {
+      const hasRecord = reportedUsers?.has(userId) ?? false
+      const phase = reportedUsers?.get(userId)
+      let definition: AdoptionFlowStateDefinition
+
+      if (!hasRecord) {
+        definition = {
+          stateKey: INACTIVE_ADOPTION_KEY,
+          label: INACTIVE_ADOPTION_PHASE,
+          kind: 'inactive',
+        }
+      } else if (!phase) {
+        definition = {
+          stateKey: UNKNOWN_WEEKLY_KEY,
+          label: UNKNOWN_ADOPTION_PHASE,
+          kind: 'unknown',
+        }
+      } else {
+        definition = {
+          stateKey: weeklyAdoptionIdentity(phase),
+          label: phase.label,
+          phaseNumber: phase.phaseNumber,
+          kind: 'phase',
+        }
+      }
+
+      definitions.set(definition.stateKey, definition)
+      userStates.set(userId, definition.stateKey)
+      counts.set(definition.stateKey, (counts.get(definition.stateKey) ?? 0) + 1)
+    }
+
+    userStatesByPeriod.push(userStates)
+    const orderedDefinitions = [...counts.keys()]
+      .map((key) => definitions.get(key)!)
+      .sort(compareAdoptionFlowStates)
+    for (const definition of orderedDefinitions) {
+      nodes.push({
+        id: adoptionFlowNodeId(periodIndex, definition.stateKey),
+        periodIndex,
+        weekStart: period.start,
+        weekEnd: period.end,
+        ...definition,
+        users: counts.get(definition.stateKey) ?? 0,
+      })
+    }
+  })
+
+  const nodesById = new Map(nodes.map((node) => [node.id, node]))
+  const stateOrder = new Map(
+    [...definitions.values()]
+      .sort(compareAdoptionFlowStates)
+      .map((definition, index) => [definition.stateKey, index]),
+  )
+  const links: AdoptionFlowLink[] = []
+
+  for (let periodIndex = 0; periodIndex < periods.length - 1; periodIndex++) {
+    const sourceStates = userStatesByPeriod[periodIndex]!
+    const targetStates = userStatesByPeriod[periodIndex + 1]!
+    const transitionCounts = new Map<string, AdoptionFlowLink>()
+
+    for (const userId of cohortUserIds) {
+      const sourceKey = sourceStates.get(userId)!
+      const targetKey = targetStates.get(userId)!
+      const source = adoptionFlowNodeId(periodIndex, sourceKey)
+      const target = adoptionFlowNodeId(periodIndex + 1, targetKey)
+      const key = `${source}\u0000${target}`
+      const current = transitionCounts.get(key)
+      if (current) current.users++
+      else transitionCounts.set(key, { source, target, users: 1 })
+    }
+
+    links.push(
+      ...[...transitionCounts.values()].sort((a, b) => {
+        const sourceA = nodesById.get(a.source)!
+        const sourceB = nodesById.get(b.source)!
+        const targetA = nodesById.get(a.target)!
+        const targetB = nodesById.get(b.target)!
+        return (
+          (stateOrder.get(sourceA.stateKey) ?? 0) -
+            (stateOrder.get(sourceB.stateKey) ?? 0) ||
+          (stateOrder.get(targetA.stateKey) ?? 0) -
+            (stateOrder.get(targetB.stateKey) ?? 0)
+        )
+      }),
+    )
+  }
+
+  return { periods, nodes, links, cohortUsers: cohortUserIds.size }
 }
 
 /**

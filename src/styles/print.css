@@ -154,6 +154,24 @@
     margin-top: 12px;
   }
 
+  .adoption-flow__scroll {
+    overflow: visible;
+    padding: 0;
+  }
+  .adoption-flow__timeline {
+    width: 100% !important;
+    min-width: 0;
+  }
+  .adoption-flow__period { font-size: 9px; }
+  .adoption-flow__node-label {
+    stroke-width: 3px;
+    font-size: 8px;
+  }
+  .adoption-flow__legend {
+    gap: 5px 10px;
+    font-size: 9px;
+  }
+
   .numbers-section {
     display: block;
   }

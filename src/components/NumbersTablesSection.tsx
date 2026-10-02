@@ -49,7 +49,9 @@ function SpendingCapRow({ scenario }: { scenario: SpendingCapScenario }) {
     <tr>
       <th scope="row">{fmtUsd(scenario.capUsd)}</th>
       <td>{fmtNumber(scenario.capCredits)}</td>
-      <td>{fmtNumber(scenario.cappedUsers)}</td>
+      <td>
+        {fmtNumber(scenario.cappedUsers)} ({fmtPercent(scenario.cappedUsersPercentage)})
+      </td>
       <td>{fmtUsd(scenario.organizationSavingsUsd)}</td>
       <td>{fmtPercent(scenario.organizationSavingsPercentage)}</td>
       <td>

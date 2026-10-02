@@ -121,6 +121,7 @@ export const SPENDING_CAPS_USD = [
   600,
   700,
   800,
+  900,
   1_000,
 ] as const
 
@@ -132,6 +133,7 @@ export interface SpendingCapScenario {
   capUsd: number
   capCredits: number
   cappedUsers: number
+  cappedUsersPercentage: number | null
   organizationSavingsUsd: number
   organizationSavingsPercentage: number | null
   savingsPerCappedEmployeeUsd: number | null
@@ -1304,6 +1306,8 @@ export function numbersTableMetrics(
       capUsd,
       capCredits,
       cappedUsers: cappedUsers.size,
+      cappedUsersPercentage:
+        totalUsers > 0 ? (cappedUsers.size / totalUsers) * 100 : null,
       organizationSavingsUsd,
       organizationSavingsPercentage:
         currentOverageCredits > 0 ? (savingsCredits / currentOverageCredits) * 100 : null,

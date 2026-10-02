@@ -650,6 +650,7 @@ describe('numbers and tables metrics', () => {
       600,
       700,
       800,
+      900,
       1_000,
     ])
   })
@@ -721,6 +722,7 @@ describe('numbers and tables metrics', () => {
       organizationSavingsUsd: 9,
       savingsPerCappedEmployeeUsd: 4.5,
     })
+    expect(metrics.spendingCaps[0]?.cappedUsersPercentage).toBeCloseTo(200 / 3)
     expect(metrics.spendingCaps[0]?.organizationSavingsPercentage).toBeCloseTo(
       (900 / 5_700) * 100,
     )
@@ -728,6 +730,7 @@ describe('numbers and tables metrics', () => {
       capUsd: 20,
       capCredits: 2_000,
       cappedUsers: 0,
+      cappedUsersPercentage: 0,
       organizationSavingsUsd: 0,
       organizationSavingsPercentage: 0,
       savingsPerCappedEmployeeUsd: null,
@@ -785,6 +788,7 @@ describe('numbers and tables metrics', () => {
     expect(metrics.totalUsers).toBe(0)
     expect(metrics.inactivePercentage).toBeNull()
     expect(metrics.belowAllowancePercentage).toBeNull()
+    expect(metrics.spendingCaps[0]?.cappedUsersPercentage).toBeNull()
     expect(metrics.spendingCaps[0]?.organizationSavingsPercentage).toBeNull()
     expect(metrics.spendingCaps[0]?.medianWeekdaysToCap).toBeNull()
   })

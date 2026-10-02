@@ -81,6 +81,47 @@ export interface WeeklyStackedData {
   points: WeeklyStackedPoint[]
 }
 
+export const CREDIT_CYCLE_DAYS = 28
+export const USD_PER_AI_CREDIT = 0.01
+export const SPENDING_CAPS_USD = [
+  10,
+  50,
+  100,
+  200,
+  300,
+  400,
+  500,
+  600,
+  700,
+  800,
+  1_000,
+] as const
+
+export interface CreditCycle extends DateRange {
+  index: number
+}
+
+export interface SpendingCapScenario {
+  capUsd: number
+  capCredits: number
+  cappedUsers: number
+  organizationSavingsUsd: number
+  organizationSavingsPercentage: number | null
+  savingsPerCappedEmployeeUsd: number | null
+  medianWeekdaysToCap: number | null
+}
+
+export interface NumbersTableMetrics {
+  cycles: CreditCycle[]
+  totalUsers: number
+  inactiveUsers: number
+  inactivePercentage: number | null
+  belowAllowanceUsers: number
+  belowAllowancePercentage: number | null
+  allowanceCredits: number
+  spendingCaps: SpendingCapScenario[]
+}
+
 /**
  * `acceptances / generations` as a percentage. Null rather than 0 when there is
  * no denominator, so charts can leave a gap instead of drawing a false collapse.
@@ -152,6 +193,26 @@ function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+/** Consecutive 28-day usage cycles, anchored to the selected range's first day. */
+export function creditCycleRanges(range?: DateRange): CreditCycle[] {
+  if (!range || range.start > range.end) return []
+
+  const cycles: CreditCycle[] = []
+  for (
+    let start = range.start, index = 0;
+    start <= range.end;
+    start = addDays(start, CREDIT_CYCLE_DAYS), index++
+  ) {
+    const fullCycleEnd = addDays(start, CREDIT_CYCLE_DAYS - 1)
+    cycles.push({
+      index,
+      start,
+      end: fullCycleEnd > range.end ? range.end : fullCycleEnd,
+    })
+  }
+  return cycles
 }
 
 /** Monday containing `date`, calculated in UTC so local time and DST cannot move the bucket. */
@@ -747,6 +808,15 @@ function popStdDev(values: number[]): number {
   return Math.sqrt(variance)
 }
 
+/** Middle value, averaging the two middle values for an even-sized population. */
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 1) return sorted[middle]!
+  return (sorted[middle - 1]! + sorted[middle]!) / 2
+}
+
 /**
  * Mean and ±1 population-standard-deviation bounds for LoC added and deleted,
  * per day, across that day's user records. Bounds are chart-ready: the lower
@@ -936,6 +1006,377 @@ export function averageDailyAiCredits(daily: DayPoint[]): AverageDailyAiCredits 
   return {
     total: mean(daily.map((d) => d.aiCredits)),
     perUser: daysWithUsers.length > 0 ? mean(daysWithUsers.map((d) => d.aiCredits / d.activeUsers)) : null,
+  }
+}
+
+const isWeekday = (day: string): boolean => {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay()
+  return weekday !== 0 && weekday !== 6
+}
+
+function weekdaysInRange(range: DateRange): number {
+  if (range.start > range.end) return 0
+  let weekdays = 0
+  for (let day = range.start; day <= range.end; day = addDays(day, 1)) {
+    if (isWeekday(day)) weekdays++
+  }
+  return weekdays
+}
+
+/**
+ * Headline user metrics and fixed spending-cap scenarios for the numbers/table
+ * tab. User identities stay inside local sets/maps and never leave this result.
+ */
+export function numbersTableMetrics(
+  records: UserDay[],
+  range: DateRange,
+  allowanceCredits: number,
+  capAmountsUsd: readonly number[] = SPENDING_CAPS_USD,
+): NumbersTableMetrics {
+  const cycles = creditCycleRanges(range)
+  const users = new Set<number>()
+  const activeUsers = new Set<number>()
+  const creditsByUserCycle = new Map<
+    number,
+    Map<number, { total: number; weekdays: number }>
+  >()
+
+  for (const record of records) {
+    if (!inRange(record.day, range)) continue
+
+    users.add(record.userId)
+    if (isActive(record)) activeUsers.add(record.userId)
+
+    const cycleIndex = cycles.findIndex(
+      (cycle) => record.day >= cycle.start && record.day <= cycle.end,
+    )
+    if (cycleIndex >= 0) {
+      let userCycles = creditsByUserCycle.get(record.userId)
+      if (!userCycles) {
+        userCycles = new Map()
+        creditsByUserCycle.set(record.userId, userCycles)
+      }
+      const cycleCredits = userCycles.get(cycleIndex) ?? { total: 0, weekdays: 0 }
+      cycleCredits.total += record.aiCredits
+      if (isWeekday(record.day)) cycleCredits.weekdays += record.aiCredits
+      userCycles.set(cycleIndex, cycleCredits)
+    }
+  }
+
+  const totalUsers = users.size
+  const inactiveUsers = totalUsers - activeUsers.size
+  const belowAllowanceUsers = [...users].filter((userId) => {
+    const userCycles = creditsByUserCycle.get(userId)
+    return userCycles !== undefined
+      && [...userCycles.values()].every(({ total }) => total < allowanceCredits)
+  }).length
+
+  const weekdayCount = weekdaysInRange(range)
+  let currentOverageCredits = 0
+  for (const userCycles of creditsByUserCycle.values()) {
+    for (const credits of userCycles.values()) {
+      currentOverageCredits += Math.max(credits.total - allowanceCredits, 0)
+    }
+  }
+
+  const spendingCaps = capAmountsUsd.map((capUsd): SpendingCapScenario => {
+    const capCredits = capUsd / USD_PER_AI_CREDIT
+    const cappedUsers = new Set<number>()
+    const weekdayOverageByUser = new Map<number, number>()
+    let savingsCredits = 0
+
+    for (const [userId, userCycles] of creditsByUserCycle) {
+      let weekdayOverage = 0
+      for (const credits of userCycles.values()) {
+        const overageCredits = Math.max(credits.total - allowanceCredits, 0)
+        if (overageCredits >= capCredits) cappedUsers.add(userId)
+        savingsCredits += Math.max(overageCredits - capCredits, 0)
+        weekdayOverage += Math.max(credits.weekdays - allowanceCredits, 0)
+      }
+      weekdayOverageByUser.set(userId, weekdayOverage)
+    }
+
+    const organizationSavingsUsd = savingsCredits * USD_PER_AI_CREDIT
+    const cappedUserTimes =
+      weekdayCount === 0
+        ? []
+        : [...cappedUsers]
+            .map((userId) => (weekdayOverageByUser.get(userId) ?? 0) / weekdayCount)
+            .filter((weekdayRate) => weekdayRate > 0)
+            .map((weekdayRate) => capCredits / weekdayRate)
+
+    return {
+      capUsd,
+      capCredits,
+      cappedUsers: cappedUsers.size,
+      organizationSavingsUsd,
+      organizationSavingsPercentage:
+        currentOverageCredits > 0 ? (savingsCredits / currentOverageCredits) * 100 : null,
+      savingsPerCappedEmployeeUsd:
+        cappedUsers.size > 0 ? organizationSavingsUsd / cappedUsers.size : null,
+      medianWeekdaysToCap:
+        cappedUserTimes.length > 0 ? median(cappedUserTimes) : null,
+    }
+  })
+
+  return {
+    cycles,
+    totalUsers,
+    inactiveUsers,
+    inactivePercentage: totalUsers > 0 ? (inactiveUsers / totalUsers) * 100 : null,
+    belowAllowanceUsers,
+    belowAllowancePercentage:
+      totalUsers > 0 ? (belowAllowanceUsers / totalUsers) * 100 : null,
+    allowanceCredits,
+    spendingCaps,
+  }
+}
+
+/**
+ * One anonymous user's activity and reported-credit totals. `index` is assigned
+ * only after aggregation and carries no stable identity between filtered views.
+ */
+export interface AnonymousUserCreditPoint {
+  index: number
+  requests: number
+  /** Lines added + lines deleted across every selected record. */
+  codeChanges: number
+  credits: number
+  reportedCreditRecords: number
+  totalRecords: number
+}
+
+export type UserCreditScatterMeasure = 'requests' | 'codeChanges'
+
+export interface UserCreditOutlierFilterResult {
+  points: AnonymousUserCreditPoint[]
+  excludedCount: number
+}
+
+export type UserCreditTrendSegment = readonly [
+  { x: number; y: number },
+  { x: number; y: number },
+]
+
+export type CorrelationStrength = 'very weak' | 'weak' | 'moderate' | 'strong' | 'very strong'
+
+export interface UserCreditCorrelation {
+  coefficient: number
+  direction: 'negative' | 'none' | 'positive'
+  strength: CorrelationStrength
+}
+
+/**
+ * Per-user activity for comparison with AI-credit consumption. Requests and
+ * Lines of Code changed include every selected record. Credits include only
+ * records where GitHub explicitly reported `ai_credits_used`; users with no
+ * reported credit values are omitted rather than plotted at a false zero.
+ */
+export function anonymousUserCreditsPerUser(
+  records: UserDay[],
+): AnonymousUserCreditPoint[] {
+  interface Acc {
+    requests: number
+    codeChanges: number
+    credits: number
+    reportedCreditRecords: number
+    totalRecords: number
+  }
+
+  const byUser = new Map<number, Acc>()
+  for (const record of records) {
+    const current = byUser.get(record.userId) ?? {
+      requests: 0,
+      codeChanges: 0,
+      credits: 0,
+      reportedCreditRecords: 0,
+      totalRecords: 0,
+    }
+
+    current.requests += record.interactions
+    current.codeChanges += record.locAdded + record.locDeleted
+    current.totalRecords++
+    if (record.aiCreditsReported) {
+      current.credits += record.aiCredits
+      current.reportedCreditRecords++
+    }
+    byUser.set(record.userId, current)
+  }
+
+  return [...byUser.entries()]
+    .filter(([, point]) => point.reportedCreditRecords > 0)
+    .sort(
+      ([idA, a], [idB, b]) =>
+        b.credits - a.credits ||
+        b.requests - a.requests ||
+        b.codeChanges - a.codeChanges ||
+        idA - idB,
+    )
+    .map(([, point], index) => ({ index, ...point }))
+}
+
+function quantile(sorted: number[], percentile: number): number {
+  const position = (sorted.length - 1) * percentile
+  const lowerIndex = Math.floor(position)
+  const upperIndex = Math.ceil(position)
+  const lower = sorted[lowerIndex]!
+  const upper = sorted[upperIndex]!
+  return lower + (upper - lower) * (position - lowerIndex)
+}
+
+function tukeyFences(values: number[]): { lower: number; upper: number } {
+  const sorted = [...values].sort((a, b) => a - b)
+  const q1 = quantile(sorted, 0.25)
+  const q3 = quantile(sorted, 0.75)
+  const iqr = q3 - q1
+  return {
+    lower: q1 - iqr * 1.5,
+    upper: q3 + iqr * 1.5,
+  }
+}
+
+/**
+ * Exclude extreme anonymous users using Tukey's 1.5×IQR fences independently
+ * on reported credits and the selected activity measure. A point outside either
+ * axis fence is excluded. Fewer than four points are left untouched because
+ * quartile-based outlier classification is not useful for such a small group.
+ */
+export function filterUserCreditOutliers(
+  data: AnonymousUserCreditPoint[],
+  measure: UserCreditScatterMeasure,
+): UserCreditOutlierFilterResult {
+  if (data.length < 4) return { points: [...data], excludedCount: 0 }
+
+  const creditFences = tukeyFences(data.map((point) => point.credits))
+  const measureFences = tukeyFences(data.map((point) => point[measure]))
+  const points = data.filter(
+    (point) =>
+      point.credits >= creditFences.lower &&
+      point.credits <= creditFences.upper &&
+      point[measure] >= measureFences.lower &&
+      point[measure] <= measureFences.upper,
+  )
+
+  return {
+    points,
+    excludedCount: data.length - points.length,
+  }
+}
+
+/**
+ * Ordinary least-squares trend for the displayed scatter points. The returned
+ * segment stays within the observed x/y bounds, so it describes the visible
+ * population without extrapolating beyond it. Constant-credit populations have
+ * no defined y-on-x slope and therefore return no segment.
+ */
+export function userCreditTrendSegment(
+  data: AnonymousUserCreditPoint[],
+  measure: UserCreditScatterMeasure,
+): UserCreditTrendSegment | undefined {
+  if (data.length < 2) return undefined
+
+  const meanX = data.reduce((sum, point) => sum + point.credits, 0) / data.length
+  const meanY = data.reduce((sum, point) => sum + point[measure], 0) / data.length
+  let covariance = 0
+  let varianceX = 0
+
+  for (const point of data) {
+    const xOffset = point.credits - meanX
+    covariance += xOffset * (point[measure] - meanY)
+    varianceX += xOffset * xOffset
+  }
+
+  if (varianceX === 0) return undefined
+
+  const slope = covariance / varianceX
+  const intercept = meanY - slope * meanX
+  const minX = Math.min(...data.map((point) => point.credits))
+  const maxX = Math.max(...data.map((point) => point.credits))
+  const minY = Math.min(...data.map((point) => point[measure]))
+  const maxY = Math.max(...data.map((point) => point[measure]))
+  const candidates = [
+    { x: minX, y: intercept + slope * minX },
+    { x: maxX, y: intercept + slope * maxX },
+  ]
+
+  if (slope !== 0) {
+    candidates.push(
+      { x: (minY - intercept) / slope, y: minY },
+      { x: (maxY - intercept) / slope, y: maxY },
+    )
+  }
+
+  const epsilon = 1e-9
+  const visible = candidates.filter(
+    (point) =>
+      point.x >= minX - epsilon &&
+      point.x <= maxX + epsilon &&
+      point.y >= minY - epsilon &&
+      point.y <= maxY + epsilon,
+  )
+  const unique = visible.filter(
+    (point, index) =>
+      visible.findIndex(
+        (candidate) =>
+          Math.abs(candidate.x - point.x) < epsilon &&
+          Math.abs(candidate.y - point.y) < epsilon,
+      ) === index,
+  )
+
+  if (unique.length < 2) return undefined
+
+  const start = unique.reduce((left, point) => (point.x < left.x ? point : left))
+  const end = unique.reduce((right, point) => (point.x > right.x ? point : right))
+  return [
+    { x: start.x, y: Math.min(maxY, Math.max(minY, start.y)) },
+    { x: end.x, y: Math.min(maxY, Math.max(minY, end.y)) },
+  ]
+}
+
+export function correlationStrength(coefficient: number): CorrelationStrength {
+  const magnitude = Math.abs(coefficient)
+  if (magnitude < 0.2) return 'very weak'
+  if (magnitude < 0.4) return 'weak'
+  if (magnitude < 0.6) return 'moderate'
+  if (magnitude < 0.8) return 'strong'
+  return 'very strong'
+}
+
+/**
+ * Pearson correlation between reported AI credits and the selected activity
+ * measure for the displayed users. At least three points and variation on both
+ * axes are required; otherwise a strength label would be misleading.
+ */
+export function userCreditCorrelation(
+  data: AnonymousUserCreditPoint[],
+  measure: UserCreditScatterMeasure,
+): UserCreditCorrelation | undefined {
+  if (data.length < 3) return undefined
+
+  const meanX = data.reduce((sum, point) => sum + point.credits, 0) / data.length
+  const meanY = data.reduce((sum, point) => sum + point[measure], 0) / data.length
+  let covariance = 0
+  let varianceX = 0
+  let varianceY = 0
+
+  for (const point of data) {
+    const xOffset = point.credits - meanX
+    const yOffset = point[measure] - meanY
+    covariance += xOffset * yOffset
+    varianceX += xOffset * xOffset
+    varianceY += yOffset * yOffset
+  }
+
+  if (varianceX === 0 || varianceY === 0) return undefined
+
+  const rawCoefficient = covariance / Math.sqrt(varianceX * varianceY)
+  const clampedCoefficient = Math.max(-1, Math.min(1, rawCoefficient))
+  const coefficient = Number(clampedCoefficient.toFixed(2))
+
+  return {
+    coefficient,
+    direction: coefficient === 0 ? 'none' : coefficient > 0 ? 'positive' : 'negative',
+    strength: correlationStrength(coefficient),
   }
 }
 

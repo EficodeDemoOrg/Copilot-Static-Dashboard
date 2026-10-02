@@ -4,11 +4,13 @@ import {
   adoptionPhaseDistribution,
   anonymousAiCreditsPerUser,
   anonymousDailyAiCreditsPerUser,
+  anonymousUserCreditsPerUser,
   averageAiCredits,
   averageDailyAiCredits,
   byDay,
   customAgentRanking,
   dailyLocDeviation,
+  filterUserCreditOutliers,
   interactionsByFeatureCloud,
   interactionsByFeaturePerDay,
   interactionsByModelCloud,
@@ -42,6 +44,7 @@ import { LocDeviationChart } from './charts/LocDeviationChart'
 import { ATTRIBUTED_LOC_NOTE, LocGroupedBarChart } from './charts/LocGroupedBarChart'
 import { RankedBarChart } from './charts/RankedBarChart'
 import { SurfaceUsageChart } from './charts/SurfaceUsageChart'
+import { UserCreditScatterChart } from './charts/UserCreditScatterChart'
 import { WeeklyStackedBarChart } from './charts/WeeklyStackedBarChart'
 
 interface Props {
@@ -97,6 +100,14 @@ export function UsageVisuals({
   const dailyCreditDistribution = useMemo(
     () => anonymousDailyAiCreditsPerUser(records),
     [records],
+  )
+  const userCreditActivity = useMemo(
+    () => anonymousUserCreditsPerUser(records),
+    [records],
+  )
+  const codeChangeCreditWithoutOutliers = useMemo(
+    () => filterUserCreditOutliers(userCreditActivity, 'codeChanges'),
+    [userCreditActivity],
   )
   const topModels = useMemo(() => topModelLoc(records), [records])
   const topLanguages = useMemo(() => topLanguageLoc(records), [records])
@@ -253,6 +264,41 @@ export function UsageVisuals({
           data={dailyCreditDistribution}
           axisLabel="Daily AI credits (mean)"
           note={DAILY_CREDIT_DOT_PLOT_NOTE}
+        />
+      </ChartCard>
+
+      <ChartCard
+        title="Requests vs AI Credits Consumed per User"
+        subtitle="Each point is anonymous; requests use every selected record, while credits use reported values only."
+      >
+        <UserCreditScatterChart data={userCreditActivity} measure="requests" />
+      </ChartCard>
+
+      <ChartCard
+        title="Code Changes vs AI Credits Consumed per User"
+        subtitle="Lines changed is lines added + lines deleted across every selected record; credits use reported values only."
+      >
+        <UserCreditScatterChart data={userCreditActivity} measure="codeChanges" />
+      </ChartCard>
+
+      <ChartCard
+        title="Code Changes vs AI Credits Consumed per User — Outliers Excluded"
+        subtitle={
+          codeChangeCreditWithoutOutliers.excludedCount === 0
+            ? 'No anonymous users fall outside the 1.5×IQR fences on either axis for this range.'
+            : `${codeChangeCreditWithoutOutliers.excludedCount.toLocaleString()} anonymous ${
+                codeChangeCreditWithoutOutliers.excludedCount === 1 ? 'user falls' : 'users fall'
+              } outside the 1.5×IQR fences on either axis and ${
+                codeChangeCreditWithoutOutliers.excludedCount === 1 ? 'is' : 'are'
+              } excluded.`
+        }
+      >
+        <UserCreditScatterChart
+          data={codeChangeCreditWithoutOutliers.points}
+          measure="codeChanges"
+          ariaLabelSuffix="with outliers excluded"
+          emptyMessage="No non-outlier users with reported AI credit data in this range."
+          noteSuffix="This version excludes points outside Tukey’s 1.5×IQR fence on either axis; groups with fewer than four users are left unchanged."
         />
       </ChartCard>
 

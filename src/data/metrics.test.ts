@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
   adoptionPhaseByWeek,
+  anonymousUserCreditsPerUser,
+  correlationStrength,
+  creditCycleRanges,
+  filterUserCreditOutliers,
   interactionsByFeatureCloud,
   interactionsByModelCloud,
   interactionsByModelPerWeek,
   locChangedByFeaturePerWeek,
+  numbersTableMetrics,
   topBubbleCloud,
   usersBySurfaceCloud,
   usersBySurfaceCountCloud,
   usersBySurfacePerWeek,
+  userCreditCorrelation,
+  userCreditTrendSegment,
   weeklyDateRanges,
   type WeeklyStackedData,
 } from './metrics'
@@ -151,6 +158,229 @@ describe('surface bubble clouds', () => {
   })
 })
 
+describe('user activity versus AI credits', () => {
+  it('returns anonymous request and code-change totals with credit coverage', () => {
+    const records = recordsFrom(
+      {
+        day: '2026-09-01',
+        user_id: 10,
+        user_initiated_interaction_count: 3,
+        loc_added_sum: 10,
+        loc_deleted_sum: 2,
+        ai_credits_used: 5,
+      },
+      {
+        day: '2026-09-02',
+        user_id: 10,
+        user_initiated_interaction_count: 4,
+        loc_added_sum: 3,
+        loc_deleted_sum: 4,
+      },
+      {
+        user_id: 20,
+        user_initiated_interaction_count: 9,
+        loc_added_sum: 100,
+        loc_deleted_sum: 50,
+      },
+      {
+        user_id: 30,
+        user_initiated_interaction_count: 2,
+        loc_added_sum: 1,
+        loc_deleted_sum: 2,
+        ai_credits_used: 0,
+      },
+    )
+
+    const points = anonymousUserCreditsPerUser(records)
+
+    expect(points).toEqual([
+      {
+        index: 0,
+        requests: 7,
+        codeChanges: 19,
+        credits: 5,
+        reportedCreditRecords: 1,
+        totalRecords: 2,
+      },
+      {
+        index: 1,
+        requests: 2,
+        codeChanges: 3,
+        credits: 0,
+        reportedCreditRecords: 1,
+        totalRecords: 1,
+      },
+    ])
+    expect(points.every((point) => !('userId' in point))).toBe(true)
+  })
+
+  it('excludes points outside the 1.5×IQR fence on either scatter axis', () => {
+    const point = (
+      index: number,
+      credits: number,
+      codeChanges: number,
+    ) => ({
+      index,
+      credits,
+      codeChanges,
+      requests: index + 1,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    })
+    const points = [
+      point(0, 10, 100),
+      point(1, 11, 110),
+      point(2, 12, 120),
+      point(3, 13, 130),
+      point(4, 14, 140),
+      point(5, 15, 150),
+      point(6, 1000, 160),
+      point(7, 16, 10000),
+    ]
+
+    expect(filterUserCreditOutliers(points, 'codeChanges')).toEqual({
+      points: points.slice(0, 6),
+      excludedCount: 2,
+    })
+  })
+
+  it('does not classify outliers in groups smaller than four users', () => {
+    const points = [
+      {
+        index: 0,
+        credits: 1,
+        codeChanges: 1,
+        requests: 1,
+        reportedCreditRecords: 1,
+        totalRecords: 1,
+      },
+      {
+        index: 1,
+        credits: 1000,
+        codeChanges: 1000,
+        requests: 1000,
+        reportedCreditRecords: 1,
+        totalRecords: 1,
+      },
+    ]
+
+    expect(filterUserCreditOutliers(points, 'codeChanges')).toEqual({
+      points,
+      excludedCount: 0,
+    })
+  })
+
+  it('calculates a least-squares trend segment across the displayed credit range', () => {
+    const points = [1, 2, 3].map((credits, index) => ({
+      index,
+      credits,
+      requests: credits * 2 + 1,
+      codeChanges: credits * 10 + 5,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    }))
+
+    expect(userCreditTrendSegment(points, 'codeChanges')).toEqual([
+      { x: 1, y: 15 },
+      { x: 3, y: 35 },
+    ])
+  })
+
+  it('omits the trend when reported credits have no variation', () => {
+    const points = [10, 20].map((codeChanges, index) => ({
+      index,
+      credits: 5,
+      requests: index + 1,
+      codeChanges,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    }))
+
+    expect(userCreditTrendSegment(points, 'codeChanges')).toBeUndefined()
+  })
+
+  it('clips the trend to the observed activity range', () => {
+    const points = [
+      { credits: 1, codeChanges: 100 },
+      { credits: 2, codeChanges: 100 },
+      { credits: 3, codeChanges: 1000 },
+    ].map((point, index) => ({
+      index,
+      ...point,
+      requests: index + 1,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    }))
+
+    const trend = userCreditTrendSegment(points, 'codeChanges')
+
+    expect(trend?.[0].y).toBeCloseTo(100)
+    expect(trend?.[1]).toEqual({ x: 3, y: 850 })
+  })
+
+  it('classifies correlation strength by absolute Pearson coefficient', () => {
+    expect(correlationStrength(0.19)).toBe('very weak')
+    expect(correlationStrength(-0.2)).toBe('weak')
+    expect(correlationStrength(0.4)).toBe('moderate')
+    expect(correlationStrength(-0.6)).toBe('strong')
+    expect(correlationStrength(0.8)).toBe('very strong')
+  })
+
+  it('reports correlation strength and direction for displayed users', () => {
+    const points = [1, 2, 3, 4].map((credits, index) => ({
+      index,
+      credits,
+      requests: 10 - credits * 2,
+      codeChanges: credits * 10,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    }))
+
+    expect(userCreditCorrelation(points, 'codeChanges')).toEqual({
+      coefficient: 1,
+      direction: 'positive',
+      strength: 'very strong',
+    })
+    expect(userCreditCorrelation(points, 'requests')).toEqual({
+      coefficient: -1,
+      direction: 'negative',
+      strength: 'very strong',
+    })
+  })
+
+  it('uses the displayed coefficient for threshold classification', () => {
+    const activity = [0, 0, 1, 20]
+    const points = [1, 2, 3, 4].map((credits, index) => ({
+      index,
+      credits,
+      requests: index + 1,
+      codeChanges: activity[index]!,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    }))
+
+    expect(userCreditCorrelation(points, 'codeChanges')).toEqual({
+      coefficient: 0.8,
+      direction: 'positive',
+      strength: 'very strong',
+    })
+  })
+
+  it('omits correlation without enough users or variation on both axes', () => {
+    const points = [1, 2, 3].map((codeChanges, index) => ({
+      index,
+      credits: 5,
+      requests: index + 1,
+      codeChanges,
+      reportedCreditRecords: 1,
+      totalRecords: 1,
+    }))
+
+    expect(userCreditCorrelation(points, 'codeChanges')).toBeUndefined()
+    expect(userCreditCorrelation(points.slice(0, 2), 'codeChanges')).toBeUndefined()
+  })
+})
+
 describe('weekly date ranges', () => {
   it('uses Monday-Sunday buckets and clips the first and last intervals', () => {
     expect(weeklyDateRanges({ start: '2026-09-02', end: '2026-09-15' })).toEqual([
@@ -280,5 +510,164 @@ describe('weekly stacked aggregations', () => {
     expect(weeklyValue(data, 0, 'feature-1')).toBe(11)
     expect(weeklyValue(data, 0, 'Other')).toBe(4)
     expect(weeklyValue(data, 1, 'feature-1')).toBe(0)
+  })
+})
+
+describe('numbers and tables metrics', () => {
+  it('includes every configured spending cap scenario in ascending order', () => {
+    const metrics = numbersTableMetrics(
+      [],
+      { start: '2026-09-01', end: '2026-09-28' },
+      1_900,
+    )
+
+    expect(metrics.spendingCaps.map(({ capUsd }) => capUsd)).toEqual([
+      10,
+      50,
+      100,
+      200,
+      300,
+      400,
+      500,
+      600,
+      700,
+      800,
+      1_000,
+    ])
+  })
+
+  it('anchors consecutive 28-day cycles to the selected start and clips the trailing cycle', () => {
+    expect(creditCycleRanges({ start: '2026-09-20', end: '2026-10-10' })).toEqual([
+      { index: 0, start: '2026-09-20', end: '2026-10-10' },
+    ])
+    expect(creditCycleRanges({ start: '2026-09-15', end: '2026-11-12' })).toEqual([
+      { index: 0, start: '2026-09-15', end: '2026-10-12' },
+      { index: 1, start: '2026-10-13', end: '2026-11-09' },
+      { index: 2, start: '2026-11-10', end: '2026-11-12' },
+    ])
+  })
+
+  it('counts inactive users and requires every observed cycle to stay strictly below the allowance', () => {
+    const records = recordsFrom(
+      {
+        day: '2026-09-01',
+        user_id: 10,
+        user_initiated_interaction_count: 1,
+        ai_credits_used: 1_899,
+      },
+      {
+        day: '2026-09-02',
+        user_id: 20,
+        code_generation_activity_count: 1,
+        ai_credits_used: 1_900,
+      },
+      { day: '2026-09-03', user_id: 30, ai_credits_used: 0 },
+      { day: '2026-09-29', user_id: 10, ai_credits_used: 1_901 },
+      { day: '2026-09-29', user_id: 30, ai_credits_used: 100 },
+    )
+
+    const metrics = numbersTableMetrics(
+      records,
+      { start: '2026-09-01', end: '2026-10-26' },
+      1_900,
+    )
+
+    expect(metrics.totalUsers).toBe(3)
+    expect(metrics.inactiveUsers).toBe(1)
+    expect(metrics.inactivePercentage).toBeCloseTo(100 / 3)
+    expect(metrics.belowAllowanceUsers).toBe(1)
+    expect(metrics.belowAllowancePercentage).toBeCloseTo(100 / 3)
+  })
+
+  it('resets caps each cycle, counts distinct capped users, and sums savings across cycles', () => {
+    const records = recordsFrom(
+      { day: '2026-09-01', user_id: 10, ai_credits_used: 3_200 },
+      { day: '2026-09-29', user_id: 10, ai_credits_used: 2_600 },
+      { day: '2026-09-02', user_id: 20, ai_credits_used: 2_900 },
+      { day: '2026-09-30', user_id: 20, ai_credits_used: 3_500 },
+      { day: '2026-09-03', user_id: 30, ai_credits_used: 2_400 },
+      { day: '2026-10-01', user_id: 30, ai_credits_used: 2_500 },
+    )
+
+    const metrics = numbersTableMetrics(
+      records,
+      { start: '2026-09-01', end: '2026-10-26' },
+      1_900,
+      [10, 20],
+    )
+
+    expect(metrics.spendingCaps[0]).toMatchObject({
+      capUsd: 10,
+      capCredits: 1_000,
+      cappedUsers: 2,
+      organizationSavingsUsd: 9,
+      savingsPerCappedEmployeeUsd: 4.5,
+    })
+    expect(metrics.spendingCaps[0]?.organizationSavingsPercentage).toBeCloseTo(
+      (900 / 5_700) * 100,
+    )
+    expect(metrics.spendingCaps[1]).toMatchObject({
+      capUsd: 20,
+      capCredits: 2_000,
+      cappedUsers: 0,
+      organizationSavingsUsd: 0,
+      organizationSavingsPercentage: 0,
+      savingsPerCappedEmployeeUsd: null,
+    })
+  })
+
+  it('does not prorate the cap for a trailing partial cycle', () => {
+    const records = recordsFrom(
+      { day: '2026-09-29', user_id: 10, ai_credits_used: 2_800 },
+    )
+
+    const metrics = numbersTableMetrics(
+      records,
+      { start: '2026-09-01', end: '2026-09-29' },
+      1_900,
+      [10],
+    )
+
+    expect(metrics.cycles).toHaveLength(2)
+    expect(metrics.spendingCaps[0]?.cappedUsers).toBe(0)
+    expect(metrics.spendingCaps[0]?.organizationSavingsUsd).toBe(0)
+  })
+
+  it('uses only capped users and credits above the allowance for median reach time', () => {
+    const records = recordsFrom(
+      { day: '2026-09-07', user_id: 10, ai_credits_used: 600 },
+      { day: '2026-09-12', user_id: 10, ai_credits_used: 1_000 },
+      { day: '2026-09-08', user_id: 20, ai_credits_used: 350 },
+      { day: '2026-09-09', user_id: 30, ai_credits_used: 150 },
+    )
+
+    const metrics = numbersTableMetrics(
+      records,
+      { start: '2026-09-07', end: '2026-09-13' },
+      100,
+      [1],
+    )
+
+    expect(metrics.spendingCaps[0]).toMatchObject({
+      capUsd: 1,
+      capCredits: 100,
+      cappedUsers: 2,
+      medianWeekdaysToCap: 1.5,
+    })
+  })
+
+  it('returns null percentages and reach estimates when there is no usable population', () => {
+    const metrics = numbersTableMetrics(
+      [],
+      { start: '2026-09-12', end: '2026-09-13' },
+      1_900,
+      [10],
+    )
+
+    expect(metrics.totalUsers).toBe(0)
+    expect(metrics.inactivePercentage).toBeNull()
+    expect(metrics.belowAllowancePercentage).toBeNull()
+    expect(metrics.spendingCaps[0]?.organizationSavingsPercentage).toBeNull()
+    expect(metrics.spendingCaps[0]?.medianWeekdaysToCap).toBeNull()
   })
 })

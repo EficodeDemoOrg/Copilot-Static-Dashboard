@@ -154,6 +154,52 @@
     margin-top: 12px;
   }
 
+  .numbers-section {
+    display: block;
+  }
+  .numbers-section > * + * {
+    margin-top: 12px;
+  }
+  .numbers-section__heading {
+    align-items: flex-start;
+  }
+  .numbers-section__plan select {
+    display: none;
+  }
+  .numbers-section__plan-print {
+    display: block;
+    font-size: 12px;
+  }
+  .numbers-table-wrap {
+    overflow: visible;
+    border-color: var(--border);
+  }
+  .numbers-table {
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 9px;
+  }
+  .numbers-table th,
+  .numbers-table td {
+    position: static;
+    padding: 6px 5px;
+  }
+  .numbers-table thead th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .numbers-table tbody th,
+  .numbers-table td {
+    white-space: nowrap;
+  }
+  .numbers-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .numbers-section__notes {
+    font-size: 9px;
+  }
+
   .bubble-cloud {
     max-width: 520px;
   }

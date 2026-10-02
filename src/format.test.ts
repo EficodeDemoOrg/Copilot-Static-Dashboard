@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmtDateIntervalLong, fmtDateIntervalShort, fmtMetricLabel } from './format'
+import { fmtDateIntervalLong, fmtDateIntervalShort, fmtMetricLabel, fmtUsd } from './format'
 
 describe('fmtMetricLabel', () => {
   it.each([
@@ -53,5 +53,11 @@ describe('date interval formatting', () => {
     expect(fmtDateIntervalLong('2026-09-28', '2026-10-04')).toBe(
       '28 Sept 2026 – 4 Oct 2026',
     )
+  })
+})
+
+describe('currency formatting', () => {
+  it('formats savings as USD with two decimal places', () => {
+    expect(fmtUsd(1234.5)).toBe('$1,234.50')
   })
 })

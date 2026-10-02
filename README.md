@@ -66,6 +66,12 @@ non-comparison visual for each unique combination behind dynamic tabs.
   period, not their most recent
 - **Average AI credits per distinct user seen**, plus average daily AI credits per user and in
   total
+- **Requests versus AI credits consumed per user** — an anonymous scatter plot with total
+  user-initiated interactions on the y-axis and total reported AI credits on the x-axis
+- **Code changes versus AI credits consumed per user** — an anonymous scatter plot with total
+  Lines of Code added + deleted on the y-axis and total reported AI credits on the x-axis
+- **Code changes versus AI credits, outliers excluded** — the same anonymous scatter plot after
+  removing users outside Tukey's 1.5×IQR fence on either axis
 - **Anonymous per-user AI credit distribution** — an unlabeled dot plot: one point per user with
   no ID or stable pseudonym attached, plus mean and population-standard-deviation markers
 - **Daily lines of code per user** — mean and population-standard-deviation bands computed across
@@ -113,9 +119,10 @@ This is the point of the tool, so it is enforced rather than promised:
 - **The app never displays GitHub usernames.** The normalized data model never carries a
   `user_login` — `user_id` (numeric, stable) is the only identity used, for de-duplication and
   distinct-user counts — see `UserDay` in `src/data/types.ts`.
-- The anonymous per-user AI credit dot plots render every user as an unlabeled point: no user ID,
-  login, or stable pseudonym is attached to a point, and the point's position on the anonymous
-  axis carries no re-identifiable meaning.
+- The anonymous per-user AI credit charts render every user as an unlabeled point: no user ID,
+  login, or stable pseudonym is attached to a point. The distribution charts' anonymous-axis
+  positions carry no re-identifiable meaning, and the activity-versus-credits charts expose only
+  their two aggregated measures and credit-reporting coverage.
 
 **`tmp_files/` is gitignored** — real exports contain real GitHub usernames and must never be
 committed. The bundled sample is synthetic, with invented logins.
@@ -216,6 +223,29 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Daily AI credits per user** are calculated per group as each day's credits divided by that
   day's active users. The table shows the mean and population standard deviation of those daily
   values, skipping days without active users.
+- **Requests versus AI credits per user** sums `user_initiated_interaction_count` across every
+  selected record and sums `ai_credits_used` only where that field was explicitly reported.
+  Users with no reported credit values are excluded. Users with partial reporting remain visible,
+  and their tooltip states how many selected records supplied credit values.
+- **Code changes versus AI credits per user** sums `loc_added_sum + loc_deleted_sum` across every
+  selected record; deletions contribute to change volume rather than being netted against
+  additions. Credit aggregation, missing-data handling, and partial-coverage disclosure match the
+  requests-versus-credits chart.
+- **The outlier-excluded code changes versus credits chart** calculates the first and third
+  quartiles independently for reported AI credits and Lines of Code changed, then excludes a user
+  outside `Q1 - 1.5×IQR` or `Q3 + 1.5×IQR` on either axis. The card reports the number excluded.
+  Groups with fewer than four users are left unchanged.
+- **Dashed relationship lines on the per-user credit scatter plots** are ordinary least-squares
+  linear trends calculated from the users displayed in that chart. The outlier-excluded chart
+  therefore has its own refitted trend. Lines are clipped to the observed data range, omitted when
+  reported credits have no variation, and describe association rather than causation.
+- **Correlation labels on the per-user credit scatter plots** use Pearson's `r` for the users
+  displayed in that chart, rounded to two decimals before classification so the shown number and
+  label cannot disagree at a threshold. Absolute `r` is classified as very weak below 0.20, weak
+  from 0.20–0.39, moderate from 0.40–0.59, strong from 0.60–0.79, and very strong from 0.80–1.00;
+  positive or negative direction is reported separately. At least three users and variation on
+  both axes are required. These labels describe association, not causation or statistical
+  significance.
 - **Missing AI-credit data is not zero.** A group where `ai_credits_used` was never reported shows
   an em dash; an explicitly reported zero remains `0`.
 - **Tool adoption percentages** count distinct users who had the relevant `used_*` flag on at

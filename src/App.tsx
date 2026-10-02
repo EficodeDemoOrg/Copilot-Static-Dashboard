@@ -24,6 +24,7 @@ import { UsageVisuals } from './components/UsageVisuals'
 import { CombinationReportsSection } from './components/CombinationReportsSection'
 import { DashboardTabs, type DashboardTab } from './components/DashboardTabs'
 import { InfoPanel } from './components/InfoPanel'
+import { NumbersTablesSection } from './components/NumbersTablesSection'
 import { PrintModeProvider } from './hooks/usePrintMode'
 import { inputFilesDocumentation } from './data/inputFilesDoc'
 
@@ -275,6 +276,16 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
       id: 'comparisons',
       label: 'Comparisons',
       content: <OrganizationComparisonSection data={comparisons} />,
+    },
+    {
+      id: 'numbers',
+      label: 'Credits & budgets',
+      content: (
+        <NumbersTablesSection
+          records={filtered}
+          range={dailyBounds ?? range ?? bounds}
+        />
+      ),
     },
     {
       id: 'aggregate',

@@ -2,8 +2,15 @@
 
 const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
 const plain = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
+const usd = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 export const fmtNumber = (n: number): string => plain.format(n)
 export const fmtCompact = (n: number): string => compact.format(n)
+export const fmtUsd = (n: number): string => usd.format(n)
 
 const DISPLAY_LABELS: Readonly<Record<string, string>> = {
   agent_edit: 'Agent Edit',

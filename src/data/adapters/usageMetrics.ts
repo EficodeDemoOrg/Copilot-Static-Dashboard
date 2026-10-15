@@ -1,4 +1,11 @@
-import type { Adapter, CustomizationTotal, FeatureTotal, ReportWindow, UserDay } from '../types'
+import type {
+  Adapter,
+  CustomizationCoverage,
+  CustomizationTotal,
+  FeatureTotal,
+  ReportWindow,
+  UserDay,
+} from '../types'
 
 /**
  * GitHub's Copilot usage metrics NDJSON export. One JSON object per line,
@@ -94,12 +101,33 @@ function toFeatureTotal(nameField: string) {
  * `totals_by_plugin` / `totals_by_slash_cmd` entries only ever carry a name and
  * an `interaction_count` upstream.
  */
-function toCustomizationTotal(nameField: string) {
-  return (v: unknown): CustomizationTotal | undefined => {
-    if (!isObject(v)) return undefined
-    const name = str(v[nameField])
-    if (!name) return undefined
-    return { name, interactionCount: num(v['interaction_count']) }
+function customizationTotals(
+  value: unknown,
+  nameField: string,
+): { totals: CustomizationTotal[]; coverage: CustomizationCoverage } {
+  if (!Array.isArray(value)) return { totals: [], coverage: 'unavailable' }
+
+  const totals: CustomizationTotal[] = []
+  let validCounts = 0
+  for (const entry of value) {
+    if (!isObject(entry)) continue
+    const name = str(entry[nameField])
+    if (!name) continue
+    const rawCount = entry['interaction_count']
+    const count =
+      typeof rawCount === 'number' ||
+      (typeof rawCount === 'string' && rawCount.trim() !== '')
+        ? numOrUndefined(rawCount)
+        : undefined
+    const valid = count !== undefined && Number.isSafeInteger(count) && count >= 0
+    totals.push({ name, interactionCount: valid ? count : 0 })
+    if (valid) validCounts++
+  }
+
+  return {
+    totals,
+    coverage:
+      validCounts === value.length ? 'reported' : validCounts > 0 ? 'partial' : 'unavailable',
   }
 }
 
@@ -136,6 +164,11 @@ export const usageMetricsAdapter: Adapter = {
 
     const phase = record['ai_adoption_phase']
     const aiCredits = numOrUndefined(record['ai_credits_used'])
+    const customAgents = customizationTotals(record['totals_by_custom_agent'], 'custom_agent')
+    const mcps = customizationTotals(record['totals_by_mcp'], 'mcp')
+    const skills = customizationTotals(record['totals_by_skill'], 'skill')
+    const plugins = customizationTotals(record['totals_by_plugin'], 'plugin')
+    const slashCommands = customizationTotals(record['totals_by_slash_cmd'], 'slash_cmd')
 
     return {
       day: d,
@@ -165,11 +198,18 @@ export const usageMetricsAdapter: Adapter = {
       totalsByFeature: mapArray(record['totals_by_feature'], toFeatureTotal('feature')),
       totalsByModelFeature: mapArray(record['totals_by_model_feature'], toFeatureTotal('model')),
       totalsByLanguageFeature: mapArray(record['totals_by_language_feature'], toFeatureTotal('language')),
-      totalsByCustomAgent: mapArray(record['totals_by_custom_agent'], toCustomizationTotal('custom_agent')),
-      totalsByMcp: mapArray(record['totals_by_mcp'], toCustomizationTotal('mcp')),
-      totalsBySkill: mapArray(record['totals_by_skill'], toCustomizationTotal('skill')),
-      totalsByPlugin: mapArray(record['totals_by_plugin'], toCustomizationTotal('plugin')),
-      totalsBySlashCmd: mapArray(record['totals_by_slash_cmd'], toCustomizationTotal('slash_cmd')),
+      totalsByCustomAgent: customAgents.totals,
+      totalsByMcp: mcps.totals,
+      totalsBySkill: skills.totals,
+      totalsByPlugin: plugins.totals,
+      totalsBySlashCmd: slashCommands.totals,
+      customizationCoverage: {
+        customAgent: customAgents.coverage,
+        mcp: mcps.coverage,
+        skill: skills.coverage,
+        plugin: plugins.coverage,
+        slashCommand: slashCommands.coverage,
+      },
     }
   },
 

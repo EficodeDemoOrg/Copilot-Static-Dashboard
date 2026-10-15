@@ -2,10 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   adoptionPhaseFlowByWeek,
   adoptionPhaseByWeek,
+  adoptionPhaseDistribution,
+  anonymousAiCreditsPerUser,
+  anonymousDailyAiCreditsPerUser,
   anonymousUserCreditsPerUser,
+  applyFilters,
   correlationStrength,
   creditCycleRanges,
   filterUserCreditOutliers,
+  highestAdoptionPhaseByUser,
+  customizationUsageDistribution,
   interactionsByFeatureCloud,
   interactionsByModelCloud,
   interactionsByModelPerWeek,
@@ -21,6 +27,7 @@ import {
   type AdoptionPhaseFlowData,
   type WeeklyStackedData,
 } from './metrics'
+import { CUSTOMIZATION_DEFINITIONS } from './customizations'
 import { validateNdjsonText } from './parseNdjson'
 import type { UserDay } from './types'
 
@@ -71,6 +78,150 @@ function flowValue(
     )?.users ?? 0
   )
 }
+
+describe('highest adoption phase for anonymous points', () => {
+  it('uses all uploaded dates and organizations without changing selected usage values', () => {
+    const records = recordsFrom(
+      { user_id: 10, ai_credits_used: 6, ai_adoption_phase: { phase: 'Phase 1', phase_number: 1 } },
+      {
+        user_id: 10,
+        day: '2026-09-02',
+        ai_credits_used: 4,
+        ai_adoption_phase: { phase: 'Phase 2', phase_number: 2 },
+      },
+      {
+        user_id: 10,
+        organization_id: 'org-2',
+        day: '2026-09-10',
+        ai_credits_used: 1000,
+        ai_adoption_phase: { phase: 'Phase 4', phase_number: 4 },
+      },
+      { user_id: 20, ai_credits_used: 2 },
+    )
+    const selected = applyFilters(records, { end: '2026-09-02' })
+    const phases = highestAdoptionPhaseByUser(records)
+    const total = anonymousAiCreditsPerUser(selected, phases)
+    const daily = anonymousDailyAiCreditsPerUser(selected, phases)
+    const scatter = anonymousUserCreditsPerUser(selected, phases)
+
+    expect(total.points.map((point) => point.credits)).toEqual([10, 2])
+    expect(total.mean).toBe(6)
+    expect(total.stdDev).toBe(4)
+    expect(daily.points.map((point) => point.credits)).toEqual([5, 2])
+    expect(daily.mean).toBe(3.5)
+    expect(daily.stdDev).toBe(1.5)
+    for (const points of [total.points, daily.points, scatter]) {
+      expect(points[0]?.adoptionPhase).toEqual({ label: 'Phase 4', phaseNumber: 4 })
+      expect(points[1]?.adoptionPhase).toEqual({ label: 'Unknown' })
+      expect(points.every((point) => !('userId' in point) && !('user_login' in point))).toBe(true)
+    }
+    expect(scatter[0]?.credits).toBe(10)
+    expect(adoptionPhaseDistribution(selected)).toContainEqual({
+      label: 'Phase 2', phaseNumber: 2, users: 1,
+    })
+  })
+
+  it('keeps the highest numeric phase and resolves equal-phase labels deterministically', () => {
+    const records = recordsFrom(
+      { user_id: 10, ai_adoption_phase: { phase: 'Phase Z', phase_number: 4 } },
+      { user_id: 10, ai_adoption_phase: { phase: 'Phase A', phase_number: 4 } },
+      { user_id: 10, ai_adoption_phase: { phase: 'Phase 1', phase_number: 1 } },
+      { user_id: 20, ai_adoption_phase: { phase: 'No Cohort', phase_number: 0 } },
+      { user_id: 20 },
+      { user_id: 30 },
+    )
+    expect(highestAdoptionPhaseByUser(records)).toEqual(highestAdoptionPhaseByUser([...records].reverse()))
+    expect([...highestAdoptionPhaseByUser(records).values()]).toEqual([
+      { label: 'Phase A', phaseNumber: 4 },
+      { label: 'No Cohort', phaseNumber: 0 },
+      { label: 'Unknown' },
+    ])
+  })
+
+  it('preserves phase metadata when removing outliers', () => {
+    const points = anonymousUserCreditsPerUser(recordsFrom(
+      ...[1, 2, 3, 4, 5, 1000].map((credits, index) => ({
+        user_id: index,
+        ai_credits_used: credits,
+        ai_adoption_phase: { phase: 'Phase 3', phase_number: 3 },
+      })),
+    ))
+    const filtered = filterUserCreditOutliers(points, 'codeChanges')
+    expect(filtered.excludedCount).toBe(1)
+    expect(filtered.points).toHaveLength(5)
+    expect(filtered.points.every((point) => point.adoptionPhase?.phaseNumber === 3)).toBe(true)
+  })
+})
+
+describe('recorded customization usage per user', () => {
+  const fields = [
+    { key: 'mcp', array: 'totals_by_mcp', name: 'mcp' },
+    { key: 'customAgent', array: 'totals_by_custom_agent', name: 'custom_agent' },
+    { key: 'skill', array: 'totals_by_skill', name: 'skill' },
+    { key: 'plugin', array: 'totals_by_plugin', name: 'plugin' },
+    { key: 'slashCommand', array: 'totals_by_slash_cmd', name: 'slash_cmd' },
+  ]
+
+  it.each(fields)('builds exact bins with users counted once for $key', ({ key, array, name }) => {
+    const definition = CUSTOMIZATION_DEFINITIONS.find((item) => item.key === key)!
+    const records = recordsFrom(
+      { user_id: 10, [array]: [{ [name]: 'a', interaction_count: 2 }, { [name]: 'b', interaction_count: 3 }] },
+      { user_id: 10, day: '2026-09-02', [array]: [{ [name]: 'a', interaction_count: 4 }] },
+      { user_id: 10, organization_id: 'org-2', [array]: [{ [name]: 'a', interaction_count: 1 }] },
+      { user_id: 20, [array]: [{ [name]: 'a', interaction_count: 10 }] },
+      { user_id: 30, [array]: [] },
+      { user_id: 40, [array]: [{ [name]: 'a', interaction_count: 0 }] },
+      { user_id: 50 },
+      { user_id: 60, [array]: null },
+      { user_id: 70, [array]: [{ [name]: 'a', interaction_count: 'invalid' }] },
+    )
+    const distribution = customizationUsageDistribution(records, definition)
+    expect(distribution).toEqual({
+      bins: [{ usages: 0, users: 2 }, { usages: 10, users: 2 }],
+      reportedUsers: 4,
+      partialUsers: 0,
+      unavailableUsers: 3,
+    })
+    expect(JSON.stringify(distribution)).not.toContain('userId')
+
+    const selected = applyFilters(records, { end: '2026-09-01' })
+      .filter((record) => record.organizationId === 'org-1')
+    expect(customizationUsageDistribution(selected, definition).bins).toEqual([
+      { usages: 0, users: 2 }, { usages: 5, users: 1 }, { usages: 10, users: 1 },
+    ])
+  })
+
+  it('keeps partial reporting separate from entirely unavailable reporting', () => {
+    const skill = CUSTOMIZATION_DEFINITIONS.find((item) => item.key === 'skill')!
+    const records = recordsFrom(
+      { user_id: 10, totals_by_skill: [{ skill: 'a', interaction_count: 3 }, { skill: 'b' }] },
+      { user_id: 20, totals_by_skill: [] },
+      { user_id: 20, day: '2026-09-02' },
+      { user_id: 30, totals_by_skill: [null] },
+    )
+    expect(customizationUsageDistribution(records, skill)).toEqual({
+      bins: [{ usages: 0, users: 1 }, { usages: 3, users: 1 }],
+      reportedUsers: 2,
+      partialUsers: 2,
+      unavailableUsers: 1,
+    })
+    expect(customizationUsageDistribution([], skill)).toEqual({
+      bins: [], reportedUsers: 0, partialUsers: 0, unavailableUsers: 0,
+    })
+  })
+
+  it('does not combine plugin invocations with their overlapping skill invocations', () => {
+    const records = recordsFrom({
+      totals_by_skill: [{ skill: 'plugin-skill', interaction_count: 7 }],
+      totals_by_plugin: [{ plugin: 'plugin', interaction_count: 7 }],
+      distinct_skill_use_count: 100,
+    })
+    for (const key of ['skill', 'plugin']) {
+      const definition = CUSTOMIZATION_DEFINITIONS.find((item) => item.key === key)!
+      expect(customizationUsageDistribution(records, definition).bins).toEqual([{ usages: 7, users: 1 }])
+    }
+  })
+})
 
 describe('interaction bubble clouds', () => {
   it('keeps every observed feature and aggregates the filtered range', () => {
@@ -226,6 +377,7 @@ describe('user activity versus AI credits', () => {
         credits: 5,
         reportedCreditRecords: 1,
         totalRecords: 2,
+        adoptionPhase: { label: 'Unknown' },
       },
       {
         index: 1,
@@ -234,6 +386,7 @@ describe('user activity versus AI credits', () => {
         credits: 0,
         reportedCreditRecords: 1,
         totalRecords: 1,
+        adoptionPhase: { label: 'Unknown' },
       },
     ])
     expect(points.every((point) => !('userId' in point))).toBe(true)

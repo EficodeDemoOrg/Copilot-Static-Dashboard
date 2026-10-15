@@ -171,6 +171,16 @@
     gap: 5px 10px;
     font-size: 9px;
   }
+  .user-phase-legend ul { gap: 4px 12px; font-size: 10px; }
+  .customization-notes { font-size: 10px; }
+  .card:has(.customization-distribution) {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  .customization-distribution__segment {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
   .numbers-section {
     display: block;

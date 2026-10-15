@@ -13,6 +13,7 @@ import {
 } from '../data/comparisons'
 import { fmtCompact, fmtMetricLabel, fmtNumber, fmtPercent } from '../format'
 import { ChartCard } from './ChartCard'
+import { CustomizationNotes } from './CustomizationNotes'
 
 interface Props {
   data: OrganizationComparisons
@@ -231,7 +232,7 @@ export function OrganizationComparisonSection({ data }: Props) {
 
       <ChartCard
         title="Extension and customization usage by enterprise / organization"
-        subtitle="Mean interactions per distinct user; total interactions are shown in parentheses."
+        subtitle="Recorded events per distinct user seen in the group, with recorded totals in parentheses. The denominator includes all users seen, not only users of the customization."
       >
         <ComparisonTable<CustomizationComparisonRow>
           label="Extension and customization usage by enterprise and organization"
@@ -244,6 +245,7 @@ export function OrganizationComparisonSection({ data }: Props) {
             },
           }))}
         />
+        <CustomizationNotes />
       </ChartCard>
 
       <ChartCard

@@ -3,7 +3,7 @@ import {
   partitionRecordsByOrganizationGroup,
   type OrganizationGroup,
 } from '../data/organizationGroups'
-import type { DateRange } from '../data/metrics'
+import type { DateRange, UserAdoptionPhases } from '../data/metrics'
 import type { UserDay } from '../data/types'
 import { fmtDayLong } from '../format'
 import { usePrintMode } from '../hooks/usePrintMode'
@@ -12,12 +12,14 @@ import { UsageVisuals } from './UsageVisuals'
 interface Props {
   groups: OrganizationGroup[]
   records: UserDay[]
+  userPhases: UserAdoptionPhases
   dailyBounds?: DateRange
 }
 
 export function CombinationReportsSection({
   groups,
   records,
+  userPhases,
   dailyBounds,
 }: Props) {
   const instanceId = useId()
@@ -124,6 +126,7 @@ export function CombinationReportsSection({
                 {(selected || printing) && (
                   <UsageVisuals
                     records={groupRecords}
+                    userPhases={userPhases}
                     dailyBounds={dailyBounds}
                     emptyMessage="No records for this combination match the selected dates."
                   />

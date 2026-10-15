@@ -14,6 +14,55 @@ const usageRecord = (overrides: Record<string, unknown> = {}) => ({
 
 const ndjson = (...records: unknown[]) => records.map((record) => JSON.stringify(record)).join('\n')
 
+describe('optional customization reporting', () => {
+  it('distinguishes an explicit empty array from unavailable fields in every category', () => {
+    const empty = validateNdjsonText(ndjson(usageRecord({
+      totals_by_skill: [],
+      totals_by_mcp: [],
+      totals_by_custom_agent: [],
+      totals_by_plugin: [],
+      totals_by_slash_cmd: [],
+    })), 'empty.ndjson')
+    const missing = validateNdjsonText(ndjson(usageRecord()), 'missing.ndjson')
+    expect(Object.values(empty.records[0]!.customizationCoverage)).toEqual(
+      Array(5).fill('reported'),
+    )
+    expect(Object.values(missing.records[0]!.customizationCoverage)).toEqual(
+      Array(5).fill('unavailable'),
+    )
+  })
+
+  it.each([undefined, null, '', ' ', 'NaN', NaN, Infinity, -1, 1.5, {}, true, Number.MAX_SAFE_INTEGER + 1])(
+    'does not turn malformed count %j into reported zero usage',
+    (interaction_count) => {
+      const result = validateNdjsonText(ndjson(usageRecord({
+        totals_by_skill: [{ skill: 'a', interaction_count }],
+      })), 'malformed-optional.ndjson')
+      expect(result.valid).toBe(true)
+      expect(result.records[0]!.totalsBySkill).toEqual([{ name: 'a', interactionCount: 0 }])
+      expect(result.records[0]!.customizationCoverage.skill).toBe('unavailable')
+    },
+  )
+
+  it('normalizes numeric strings and retains partial-array reporting', () => {
+    const result = validateNdjsonText(ndjson(usageRecord({
+      totals_by_skill: [
+        { skill: 'a', interaction_count: '3' },
+        { skill: 'b', interaction_count: 0 },
+        { skill: 'bad', interaction_count: 'unknown' },
+        { interaction_count: 10 },
+        null,
+      ],
+    })), 'partial.ndjson')
+    expect(result.records[0]!.totalsBySkill).toEqual([
+      { name: 'a', interactionCount: 3 },
+      { name: 'b', interactionCount: 0 },
+      { name: 'bad', interactionCount: 0 },
+    ])
+    expect(result.records[0]!.customizationCoverage.skill).toBe('partial')
+  })
+})
+
 describe('validateNdjsonText', () => {
   it('recognizes an enterprise-scoped file and lists its enterprise IDs', () => {
     const result = validateNdjsonText(

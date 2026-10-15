@@ -1,9 +1,10 @@
 import type { TooltipContentProps } from 'recharts'
 import { CartesianGrid, ReferenceArea, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
-import type { CreditDistribution } from '../../data/metrics'
+import type { AnonymousCreditPoint, CreditDistribution } from '../../data/metrics'
 import { chrome, ink, measureColor, tickStyle } from '../../theme/palette'
 import { fmtCompact, fmtNumber } from '../../format'
 import { ChartFrame } from './ChartFrame'
+import { UserPhaseLegend, userPhaseGroups } from './UserPhaseLegend'
 
 /**
  * Required interpretation copy: the y position is an anonymous ordinal with
@@ -30,8 +31,8 @@ const HEIGHT = 260
 function makeCreditTooltip(axisLabel: string) {
   return function CreditTooltip({ active, payload }: TooltipContentProps) {
     if (!active || !payload?.length) return null
-    const credits = payload[0]?.payload?.credits as number | undefined
-    if (credits === undefined) return null
+    const point = payload[0]?.payload as AnonymousCreditPoint | undefined
+    if (point?.credits === undefined) return null
 
     return (
       <div className="tooltip">
@@ -39,8 +40,9 @@ function makeCreditTooltip(axisLabel: string) {
         <div className="tooltip__row">
           <span className="tooltip__swatch" style={{ background: measureColor.aiCredits }} />
           <span>{axisLabel}</span>
-          <span className="tooltip__value">{fmtNumber(credits)}</span>
+          <span className="tooltip__value">{fmtNumber(point.credits)}</span>
         </div>
+        <div className="tooltip__note">Highest GH phase: {point.adoptionPhase?.label ?? 'Unknown'}</div>
       </div>
     )
   }
@@ -144,9 +146,20 @@ export function AnonymousCreditDotPlot({ data, axisLabel = 'AI credits', note = 
             }}
           />
 
-          <Scatter data={data.points} fill={color} fillOpacity={0.65} isAnimationActive={false} />
+          {userPhaseGroups(data.points).map((group) => (
+            <Scatter
+              key={group.key}
+              name={group.phase.label}
+              data={group.points}
+              fill={group.color}
+              stroke={group.color}
+              shape={group.shape}
+              isAnimationActive={false}
+            />
+          ))}
         </ScatterChart>
       </ChartFrame>
+      <UserPhaseLegend points={data.points} />
       <p className="card__note">{note}</p>
     </>
   )

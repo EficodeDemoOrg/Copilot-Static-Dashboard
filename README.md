@@ -25,8 +25,9 @@ non-comparison visual for each unique combination behind dynamic tabs.
   include their within-group population standard deviation
 - **Tool adoption** — percentage of users who used Agent, Chat, CLI, VS Code Agent, Copilot App,
   active/passive code review, or the combined cloud/coding agent
-- **Extension and customization usage** — MCP, custom agent, skill, plugin, and slash-command
-  interactions as a per-user mean with the total in parentheses
+- **Extension and customization usage** — recorded MCP connection attempts, custom agent starts,
+  skill invocations, plugin-associated skill invocations, and slash-command invocations as a
+  per-user mean with the recorded total in parentheses
 - **Feature preference** — each group's share of attributed interactions across the overall top
   seven features, with the remaining tail folded into Other
 - **Lines of code** — added/deleted totals and per-user values
@@ -76,21 +77,48 @@ non-comparison visual for each unique combination behind dynamic tabs.
   removing users outside Tukey's 1.5×IQR fence on either axis
 - **Anonymous per-user AI credit distribution** — an unlabeled dot plot: one point per user with
   no ID or stable pseudonym attached, plus mean and population-standard-deviation markers
+- **Daily mean AI credits per user** — the same anonymous distribution using each user's mean
+  daily credits rather than their period total
 - **Daily lines of code per user** — mean and population-standard-deviation bands computed across
   that day's user records, not across daily organization totals
+
+All five anonymous user-dot plots use color and redundant marker shapes for each user's highest
+GH adoption phase across **all uploaded data**, including dates and organizations outside the
+current view. Legends and tooltips identify the phase; No Cohort and Unknown are separate.
+Usage values still follow the selected dates and organization. The adoption distribution,
+weekly adoption, and comparison tables retain their existing selected-range phase rules.
+
+**Recorded customization usage per user**
+
+Five separate frequency charts cover MCP servers, custom agents, skills, plugins, and slash
+commands. The x-axis is the exact number of recorded category events per user in the selected
+records; the y-axis counts unique users with that value. For example, a bar at 10 with height 4
+means four users each had 10 recorded events, not that 10 different items were used.
+
+Users with explicitly reported zero activity appear at zero. Users with no usable reporting in
+that category are excluded rather than counted as zero, and the charts state how many included
+users have partial reporting. Only observed exact counts appear, with categorical spacing rather
+than a continuous numeric scale. Long distributions continue in additional chart segments,
+including in print; no counts are bucketed or dropped.
+
+GitHub provides only the top five items per user record, so these are **recorded event totals,
+not guaranteed complete usage or exact adoption**. A missing item is not evidence of zero usage.
 
 **Top-five rankings**
 
 - **Top 5 models and languages by Lines of Code changed** — ranked by combined added + deleted
   Lines of Code, shown as separate added/deleted bars
-- **Top 5 custom agents, MCP servers, skills, plugins, and slash commands** — ranked by
-  interaction count
+- **Top 5 custom agents, MCP servers, skills, plugins, and slash commands** — ranked by the
+  category's recorded events: starts, connection attempts, or invocations, not unique users
 
 **Five complete disclosures**
 
-Each customization ranking is followed by its own complete ranked list (all skills, all MCP
-servers, all agents, all slash commands, all plugins) in a collapsible section that is always
-expanded in the printed/exported PDF, regardless of its on-screen state.
+Each customization ranking is followed by a complete ranked list of the labels present in the
+uploaded breakdowns, in a collapsible section that is always expanded in the printed/exported
+PDF. Badges count **reported labels** and row values include their event units. These lists are
+complete relative to the uploaded top-five breakdowns, not every item actually used.
+Customer-defined identifiers can be grouped under `other`, or `custom` for slash commands, so
+the badge is not a count of distinct underlying artifacts.
 
 **Per-combination appendix**
 
@@ -124,7 +152,8 @@ This is the point of the tool, so it is enforced rather than promised:
 - The anonymous per-user AI credit charts render every user as an unlabeled point: no user ID,
   login, or stable pseudonym is attached to a point. The distribution charts' anonymous-axis
   positions carry no re-identifiable meaning, and the activity-versus-credits charts expose only
-  their two aggregated measures and credit-reporting coverage.
+  their two aggregated measures, credit-reporting coverage, and adoption phase. Customization
+  distributions expose only event-count bins, unique-user frequencies, and coverage summaries.
 
 **`tmp_files/` is gitignored** — real exports contain real GitHub usernames and must never be
 committed. The bundled sample is synthetic, with invented logins.
@@ -259,8 +288,9 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Tool adoption percentages** count distinct users who had the relevant `used_*` flag on at
   least one day in range. `used_copilot_coding_agent` and `used_copilot_cloud_agent` are combined
   with a logical OR.
-- **Customization comparison means** divide each group's total MCP, custom-agent, skill, plugin,
-  or slash-command interactions by its distinct users seen.
+- **Customization comparison means** divide each group's recorded category-event total by all
+  distinct users seen in that group, not only the users of that customization. Parentheses show
+  the recorded total in the same category-specific unit.
 - **Feature preference** is the percentage of a group's attributed `totals_by_feature`
   interactions in each displayed feature. Feature columns are the top seven across all displayed
   groups plus Other when a tail exists.
@@ -279,8 +309,22 @@ Formulas and choices that are not obvious from a chart title alone:
 - **Weekly feature Lines of Code changed** is the magnitude `added + deleted`, not a net change.
   Features rank once across the selected range; the top seven remain stable and the complete
   attributed tail is folded into `Other`.
-- **Customization rankings** (custom agents, MCP servers, skills, plugins, slash commands) rank by
-  interaction count.
+- **Customization event units** follow GitHub's
+  [CLI customization field definitions](https://docs.github.com/en/copilot/reference/copilot-usage-metrics/copilot-usage-metrics#copilot-cli-customization-fields-api-only):
+  `interaction_count` means skill invocations, custom agent starts, MCP connection/reconnection
+  attempts (successful or failed), slash command invocations, or plugin-associated skill
+  invocations. MCP tool calls through an existing connection do not increment the count.
+- **Plugin skill invocations are already included in skill counts.** Do not add these two
+  categories together.
+- **Customization per-user distributions** sum the recorded event counts across selected records
+  for each numeric user ID, then count users at each exact total. A user contributes once per
+  category, not once per user-day or named item. Empty reported arrays indicate zero activity;
+  null, absent, or entirely malformed arrays are unavailable. Usable portions of incomplete
+  reporting contribute recorded counts, with partial coverage explicitly disclosed.
+- **Reported labels are not distinct-item counts.** GitHub's `distinct_*_use_count` fields count
+  underlying item identifiers, including those outside the top-five breakdowns and those grouped
+  under privacy labels. Those fields are not event totals, user totals, or period-wide counts
+  that can be obtained by summing daily values; the dashboard does not substitute them for usage.
 
 ## Interpretation limits
 
@@ -299,6 +343,9 @@ Formulas and choices that are not obvious from a chart title alone:
   over suggested lines — there is no Lines of Code acceptance rate anywhere in this app.
 - **Optional schema fields can be absent or empty** and produce a targeted empty state rather than
   a broken chart — see "Supported input" above.
+- **Customization breakdowns are top-five lists per record, not exhaustive inventories.**
+  Rankings, comparisons, and per-user distributions describe recorded events in those lists.
+  They cannot establish exact adoption or guarantee complete usage totals.
 
 The schema is also still growing across real exports: fields such as `used_cli`,
 `totals_by_skill`, `totals_by_cli`, and `totals_by_3rd_party_agent` do not appear on every record,

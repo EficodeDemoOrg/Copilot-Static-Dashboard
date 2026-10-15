@@ -11,6 +11,7 @@ import {
   applyFilters,
   dateRange,
   distinctOrganizationGroups,
+  highestAdoptionPhaseByUser,
   type Filters,
 } from './data/metrics'
 import { SAMPLE_FILE_NAME, SAMPLE_NDJSON } from './data/sample'
@@ -252,6 +253,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
   )
 
   const filtered = useMemo(() => applyFilters(records, filters), [records, filters])
+  const userPhases = useMemo(() => highestAdoptionPhaseByUser(records), [records])
 
   const range = useMemo(() => dateRange(filtered), [filtered])
 
@@ -290,7 +292,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
     {
       id: 'aggregate',
       label: 'Aggregate',
-      content: <UsageVisuals records={filtered} dailyBounds={dailyBounds} />,
+      content: <UsageVisuals records={filtered} userPhases={userPhases} dailyBounds={dailyBounds} />,
     },
   ]
 
@@ -302,6 +304,7 @@ function Dashboard({ dataset, generatedAt, filters, onFilters }: DashboardProps)
         <CombinationReportsSection
           groups={organizationGroups}
           records={filtered}
+          userPhases={userPhases}
           dailyBounds={dailyBounds}
         />
       ),

@@ -4,7 +4,8 @@ import {
 } from './metrics'
 import { organizationGroupFor } from './organizationGroups'
 import { SURFACE_DEFINITIONS, type SurfaceKey } from './surfaces'
-import type { CustomizationTotal, EntityAliases, UserDay } from './types'
+import { CUSTOMIZATION_DEFINITIONS } from './customizations'
+import type { CustomizationKey, CustomizationTotal, EntityAliases, UserDay } from './types'
 
 export const ADOPTION_BUCKETS = [
   'Phase 4',
@@ -21,15 +22,10 @@ export const TOOL_COLUMNS = SURFACE_DEFINITIONS.map(({ key, label }) => ({ key, 
 
 export type ToolKey = SurfaceKey
 
-export const CUSTOMIZATION_COLUMNS = [
-  { key: 'mcp', label: 'MCP' },
-  { key: 'customAgent', label: 'Custom agent' },
-  { key: 'skill', label: 'Skill' },
-  { key: 'plugin', label: 'Plugin' },
-  { key: 'slashCommand', label: 'Slash command' },
-] as const
-
-export type CustomizationKey = (typeof CUSTOMIZATION_COLUMNS)[number]['key']
+export const CUSTOMIZATION_COLUMNS = CUSTOMIZATION_DEFINITIONS.map((definition) => ({
+  key: definition.key,
+  label: `${definition.label} ${definition.unit}`,
+}))
 
 interface ComparisonRow {
   key: string
@@ -261,12 +257,14 @@ function customizationTotal(records: UserDay[], pick: (record: UserDay) => Custo
 
 function customizationRows(groups: Group[]): CustomizationComparisonRow[] {
   return groups.map((group) => {
+    const totalFor = (key: CustomizationKey) =>
+      customizationTotal(group.records, CUSTOMIZATION_DEFINITIONS.find((item) => item.key === key)!.totals)
     const totals: Record<CustomizationKey, number> = {
-      mcp: customizationTotal(group.records, (record) => record.totalsByMcp),
-      customAgent: customizationTotal(group.records, (record) => record.totalsByCustomAgent),
-      skill: customizationTotal(group.records, (record) => record.totalsBySkill),
-      plugin: customizationTotal(group.records, (record) => record.totalsByPlugin),
-      slashCommand: customizationTotal(group.records, (record) => record.totalsBySlashCmd),
+      mcp: totalFor('mcp'),
+      customAgent: totalFor('customAgent'),
+      skill: totalFor('skill'),
+      plugin: totalFor('plugin'),
+      slashCommand: totalFor('slashCommand'),
     }
     const perUser = (total: number) => total / group.users.size
 

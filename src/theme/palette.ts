@@ -6,7 +6,8 @@
  * hexes, the remaining six are derived in OKLCH because the brand book supplies
  * only three in-band hues. Adjacent-pair CVD and normal-vision floors pass in both
  * modes for all eight slots; charts that put every series on screen at once
- * (scatter, bubble) must cap at the first three.
+ * (scatter, bubble) must cap at the first three unless redundant marker shapes
+ * distinguish categories, as in the adoption-phase user plots.
  */
 export const series = [
   'var(--series-1)',
@@ -86,6 +87,16 @@ export type Measure = keyof typeof measureColor
 
 /** The "Other" bucket is deliberately neutral — it is a remainder, not a category. */
 export const otherFill = 'var(--text-muted)'
+
+/** Fixed cohort encoding; shape is redundant so phases do not rely on color alone. */
+export function adoptionPhaseEncoding(phaseNumber: number | undefined) {
+  if (phaseNumber === undefined) return { color: otherFill, shape: 'cross' as const }
+  if (phaseNumber === 0) return { color: ink.secondary, shape: 'square' as const }
+  const colors = [series[0], series[1], series[2], series[5], series[4], series[6], series[7]]
+  const shapes = ['circle', 'diamond', 'triangle', 'star', 'wye', 'square', 'cross'] as const
+  const index = ((Math.trunc(phaseNumber) - 1) % colors.length + colors.length) % colors.length
+  return { color: colors[index]!, shape: shapes[index]! }
+}
 
 /** Axis/tick text style shared by every chart. */
 export const tickStyle = { fill: ink.muted, fontSize: 12 } as const

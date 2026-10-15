@@ -1,6 +1,7 @@
 import type { CustomizationTotal, FeatureTotal, UserDay } from './types'
 import { distinctOrganizationGroups } from './organizationGroups'
 import { SURFACE_DEFINITIONS, type SurfaceKey } from './surfaces'
+import type { CustomizationDefinition } from './customizations'
 
 /**
  * Pure aggregations over already-filtered records. No React, no formatting —
@@ -1133,29 +1134,41 @@ export interface AdoptionPhaseTotal {
 
 const UNKNOWN_ADOPTION_PHASE = 'Unknown'
 
-export function adoptionPhaseDistribution(records: UserDay[]): AdoptionPhaseTotal[] {
-  // One entry per user, so highest-phase selection can never produce more than one bucket per user.
-  const phasesByUser = new Map<number, { phaseNumber: number; label: string }[]>()
+export interface UserAdoptionPhase {
+  label: string
+  phaseNumber?: number
+}
+
+export type UserAdoptionPhases = ReadonlyMap<number, UserAdoptionPhase>
+
+const UNKNOWN_USER_PHASE: UserAdoptionPhase = { label: UNKNOWN_ADOPTION_PHASE }
+
+export function highestAdoptionPhaseByUser(records: UserDay[]): UserAdoptionPhases {
+  const phasesByUser = new Map<number, UserAdoptionPhase>()
   for (const r of records) {
-    if (!phasesByUser.has(r.userId)) phasesByUser.set(r.userId, [])
+    const current = phasesByUser.get(r.userId)
+    if (!current) phasesByUser.set(r.userId, UNKNOWN_USER_PHASE)
     if (r.adoptionPhaseNumber !== undefined) {
-      phasesByUser.get(r.userId)!.push({
+      const candidate = {
         phaseNumber: r.adoptionPhaseNumber,
         label: r.adoptionPhase ?? String(r.adoptionPhaseNumber),
-      })
+      }
+      if (
+        current?.phaseNumber === undefined ||
+        candidate.phaseNumber > current.phaseNumber ||
+        (candidate.phaseNumber === current.phaseNumber &&
+          candidate.label.localeCompare(current.label) < 0)
+      ) {
+        phasesByUser.set(r.userId, candidate)
+      }
     }
   }
+  return phasesByUser
+}
 
+export function adoptionPhaseDistribution(records: UserDay[]): AdoptionPhaseTotal[] {
   const counts = new Map<string, AdoptionPhaseTotal>()
-  for (const phases of phasesByUser.values()) {
-    const best =
-      phases.length === 0
-        ? { phaseNumber: undefined, label: UNKNOWN_ADOPTION_PHASE }
-        : phases.reduce((a, b) =>
-            b.phaseNumber > a.phaseNumber || (b.phaseNumber === a.phaseNumber && b.label.localeCompare(a.label) < 0)
-              ? b
-              : a,
-          )
+  for (const best of highestAdoptionPhaseByUser(records).values()) {
     const key = best.phaseNumber === undefined ? UNKNOWN_ADOPTION_PHASE : `${best.phaseNumber}:${best.label}`
     let e = counts.get(key)
     if (!e) {
@@ -1343,6 +1356,7 @@ export interface AnonymousUserCreditPoint {
   credits: number
   reportedCreditRecords: number
   totalRecords: number
+  adoptionPhase?: UserAdoptionPhase
 }
 
 export type UserCreditScatterMeasure = 'requests' | 'codeChanges'
@@ -1373,6 +1387,7 @@ export interface UserCreditCorrelation {
  */
 export function anonymousUserCreditsPerUser(
   records: UserDay[],
+  phases: UserAdoptionPhases = highestAdoptionPhaseByUser(records),
 ): AnonymousUserCreditPoint[] {
   interface Acc {
     requests: number
@@ -1411,7 +1426,11 @@ export function anonymousUserCreditsPerUser(
         b.codeChanges - a.codeChanges ||
         idA - idB,
     )
-    .map(([, point], index) => ({ index, ...point }))
+    .map(([userId, point], index) => ({
+      index,
+      ...point,
+      adoptionPhase: phases.get(userId) ?? UNKNOWN_USER_PHASE,
+    }))
 }
 
 function quantile(sorted: number[], percentile: number): number {
@@ -1588,6 +1607,7 @@ export function userCreditCorrelation(
 export interface AnonymousCreditPoint {
   index: number
   credits: number
+  adoptionPhase?: UserAdoptionPhase
 }
 
 export interface CreditDistribution {
@@ -1597,15 +1617,23 @@ export interface CreditDistribution {
   stdDev: number
 }
 
-export function anonymousAiCreditsPerUser(records: UserDay[]): CreditDistribution {
+export function anonymousAiCreditsPerUser(
+  records: UserDay[],
+  phases: UserAdoptionPhases = highestAdoptionPhaseByUser(records),
+): CreditDistribution {
   const creditsByUser = new Map<number, number>()
   for (const r of records) {
     creditsByUser.set(r.userId, (creditsByUser.get(r.userId) ?? 0) + r.aiCredits)
   }
-  const totals = [...creditsByUser.entries()].sort(([idA, a], [idB, b]) => b - a || idA - idB).map(([, c]) => c)
+  const ranked = [...creditsByUser.entries()].sort(([idA, a], [idB, b]) => b - a || idA - idB)
+  const totals = ranked.map(([, credits]) => credits)
 
   return {
-    points: totals.map((credits, index) => ({ index, credits })),
+    points: ranked.map(([userId, credits], index) => ({
+      index,
+      credits,
+      adoptionPhase: phases.get(userId) ?? UNKNOWN_USER_PHASE,
+    })),
     mean: mean(totals),
     stdDev: popStdDev(totals),
   }
@@ -1618,20 +1646,27 @@ export function anonymousAiCreditsPerUser(records: UserDay[]): CreditDistributio
  * user, so the distribution isn't skewed by users who simply have more days
  * of data in range.
  */
-export function anonymousDailyAiCreditsPerUser(records: UserDay[]): CreditDistribution {
+export function anonymousDailyAiCreditsPerUser(
+  records: UserDay[],
+  phases: UserAdoptionPhases = highestAdoptionPhaseByUser(records),
+): CreditDistribution {
   const creditsByUser = new Map<number, number>()
   const daysByUser = new Map<number, number>()
   for (const r of records) {
     creditsByUser.set(r.userId, (creditsByUser.get(r.userId) ?? 0) + r.aiCredits)
     daysByUser.set(r.userId, (daysByUser.get(r.userId) ?? 0) + 1)
   }
-  const dailyMeans = [...creditsByUser.entries()]
+  const ranked = [...creditsByUser.entries()]
     .map(([id, total]) => [id, total / (daysByUser.get(id) ?? 1)] as const)
     .sort(([idA, a], [idB, b]) => b - a || idA - idB)
-    .map(([, credits]) => credits)
+  const dailyMeans = ranked.map(([, credits]) => credits)
 
   return {
-    points: dailyMeans.map((credits, index) => ({ index, credits })),
+    points: ranked.map(([userId, credits], index) => ({
+      index,
+      credits,
+      adoptionPhase: phases.get(userId) ?? UNKNOWN_USER_PHASE,
+    })),
     mean: mean(dailyMeans),
     stdDev: popStdDev(dailyMeans),
   }
@@ -1650,7 +1685,7 @@ export interface CustomizationRankingResult {
   top: CustomizationRanking[]
 }
 
-function rankCustomizations(
+export function rankCustomizations(
   records: UserDay[],
   pick: (r: UserDay) => CustomizationTotal[],
   limit = 5,
@@ -1681,6 +1716,53 @@ export const pluginRanking = (records: UserDay[]): CustomizationRankingResult =>
 
 export const slashCommandRanking = (records: UserDay[]): CustomizationRankingResult =>
   rankCustomizations(records, (r) => r.totalsBySlashCmd)
+
+export interface CustomizationUsageBin {
+  usages: number
+  users: number
+}
+
+export interface CustomizationUsageDistribution {
+  bins: CustomizationUsageBin[]
+  reportedUsers: number
+  partialUsers: number
+  unavailableUsers: number
+}
+
+export function customizationUsageDistribution(
+  records: UserDay[],
+  definition: CustomizationDefinition,
+): CustomizationUsageDistribution {
+  const byUser = new Map<number, { usages: number; reported: boolean; incomplete: boolean }>()
+  for (const record of records) {
+    const user = byUser.get(record.userId) ?? { usages: 0, reported: false, incomplete: false }
+    const coverage = record.customizationCoverage[definition.key]
+    if (coverage !== 'unavailable') {
+      user.reported = true
+      user.usages += definition.totals(record).reduce((sum, item) => sum + item.interactionCount, 0)
+    }
+    if (coverage !== 'reported') user.incomplete = true
+    byUser.set(record.userId, user)
+  }
+
+  const counts = new Map<number, number>()
+  let partialUsers = 0
+  let unavailableUsers = 0
+  for (const user of byUser.values()) {
+    if (!user.reported) {
+      unavailableUsers++
+      continue
+    }
+    if (user.incomplete) partialUsers++
+    counts.set(user.usages, (counts.get(user.usages) ?? 0) + 1)
+  }
+  return {
+    bins: [...counts].sort(([a], [b]) => a - b).map(([usages, users]) => ({ usages, users })),
+    reportedUsers: byUser.size - unavailableUsers,
+    partialUsers,
+    unavailableUsers,
+  }
+}
 
 /**
  * Keep the top `limit` entries and fold the tail into a single "Other" bar, so a

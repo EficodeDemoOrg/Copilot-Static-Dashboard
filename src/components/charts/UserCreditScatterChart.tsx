@@ -16,6 +16,7 @@ import type {
 import { fmtCompact, fmtNumber } from '../../format'
 import { chrome, ink, measureColor, tickStyle } from '../../theme/palette'
 import { ChartFrame } from './ChartFrame'
+import { UserPhaseLegend, userPhaseGroups } from './UserPhaseLegend'
 
 interface MeasureConfig {
   axisLabel: string
@@ -77,6 +78,7 @@ function makeUserCreditTooltip(measure: UserCreditScatterMeasure, config: Measur
     return (
       <div className="tooltip">
         <div className="tooltip__label">Anonymous user</div>
+        <div className="tooltip__note">Highest GH phase: {point.adoptionPhase?.label ?? 'Unknown'}</div>
         <div className="tooltip__row">
           <span className="tooltip__swatch" style={{ background: measureColor.aiCredits }} />
           <span>Reported AI credits</span>
@@ -193,17 +195,21 @@ export function UserCreditScatterChart({
                 ifOverflow="hidden"
               />
             )}
-            <Scatter
-              data={data}
-              name="Anonymous users"
-              fill={measureColor.aiCredits}
-              fillOpacity={0.68}
-              stroke={measureColor.aiCredits}
-              isAnimationActive={false}
-            />
+            {userPhaseGroups(data).map((group) => (
+              <Scatter
+                key={group.key}
+                data={group.points}
+                name={group.phase.label}
+                fill={group.color}
+                stroke={group.color}
+                shape={group.shape}
+                isAnimationActive={false}
+              />
+            ))}
           </ScatterChart>
         </ChartFrame>
       </div>
+      <UserPhaseLegend points={data} />
       <p className="card__note">
         {config.note}
         {trendSegment

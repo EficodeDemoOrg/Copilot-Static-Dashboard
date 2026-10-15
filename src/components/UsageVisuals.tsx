@@ -9,7 +9,7 @@ import {
   averageAiCredits,
   averageDailyAiCredits,
   byDay,
-  customAgentRanking,
+  customizationUsageDistribution,
   dailyLocDeviation,
   filterUserCreditOutliers,
   interactionsByFeatureCloud,
@@ -18,10 +18,7 @@ import {
   interactionsByModelPerWeek,
   locChangedByFeaturePerWeek,
   locByFeature,
-  mcpRanking,
-  pluginRanking,
-  skillRanking,
-  slashCommandRanking,
+  rankCustomizations,
   topLanguageLoc,
   topModelLoc,
   usersBySurfaceCloud,
@@ -29,11 +26,14 @@ import {
   usersBySurfaceByDay,
   usersBySurfacePerWeek,
   type DateRange,
+  type UserAdoptionPhases,
 } from '../data/metrics'
+import { CUSTOMIZATION_DEFINITIONS } from '../data/customizations'
 import type { UserDay } from '../data/types'
 import { fmtMetricLabel } from '../format'
 import { ChartCard } from './ChartCard'
 import { RankingDisclosure } from './RankingDisclosure'
+import { CustomizationNotes } from './CustomizationNotes'
 import { AdoptionPhaseChart } from './charts/AdoptionPhaseChart'
 import { AdoptionPhaseFlowChart } from './charts/AdoptionPhaseFlowChart'
 import { AiCreditsChart } from './charts/AiCreditsChart'
@@ -48,15 +48,18 @@ import { RankedBarChart } from './charts/RankedBarChart'
 import { SurfaceUsageChart } from './charts/SurfaceUsageChart'
 import { UserCreditScatterChart } from './charts/UserCreditScatterChart'
 import { WeeklyStackedBarChart } from './charts/WeeklyStackedBarChart'
+import { CustomizationUsageChart } from './charts/CustomizationUsageChart'
 
 interface Props {
   records: UserDay[]
+  userPhases: UserAdoptionPhases
   dailyBounds?: DateRange
   emptyMessage?: string
 }
 
 export function UsageVisuals({
   records,
+  userPhases,
   dailyBounds,
   emptyMessage = 'No records match the current filters.',
 }: Props) {
@@ -102,14 +105,17 @@ export function UsageVisuals({
   )
   const avgCredits = useMemo(() => averageAiCredits(records), [records])
   const avgDailyCredits = useMemo(() => averageDailyAiCredits(daily), [daily])
-  const creditDistribution = useMemo(() => anonymousAiCreditsPerUser(records), [records])
+  const creditDistribution = useMemo(
+    () => anonymousAiCreditsPerUser(records, userPhases),
+    [records, userPhases],
+  )
   const dailyCreditDistribution = useMemo(
-    () => anonymousDailyAiCreditsPerUser(records),
-    [records],
+    () => anonymousDailyAiCreditsPerUser(records, userPhases),
+    [records, userPhases],
   )
   const userCreditActivity = useMemo(
-    () => anonymousUserCreditsPerUser(records),
-    [records],
+    () => anonymousUserCreditsPerUser(records, userPhases),
+    [records, userPhases],
   )
   const codeChangeCreditWithoutOutliers = useMemo(
     () => filterUserCreditOutliers(userCreditActivity, 'codeChanges'),
@@ -117,11 +123,14 @@ export function UsageVisuals({
   )
   const topModels = useMemo(() => topModelLoc(records), [records])
   const topLanguages = useMemo(() => topLanguageLoc(records), [records])
-  const customAgents = useMemo(() => customAgentRanking(records), [records])
-  const mcps = useMemo(() => mcpRanking(records), [records])
-  const skills = useMemo(() => skillRanking(records), [records])
-  const plugins = useMemo(() => pluginRanking(records), [records])
-  const slashCommands = useMemo(() => slashCommandRanking(records), [records])
+  const customizations = useMemo(
+    () => CUSTOMIZATION_DEFINITIONS.map((definition) => ({
+      definition,
+      ranking: rankCustomizations(records, definition.totals),
+      distribution: customizationUsageDistribution(records, definition),
+    })),
+    [records],
+  )
 
   if (records.length === 0) return <p className="empty">{emptyMessage}</p>
 
@@ -347,54 +356,43 @@ export function UsageVisuals({
         </ChartCard>
       </div>
 
+      <CustomizationNotes />
+
+      {customizations.map(({ definition, distribution }) => (
+        <ChartCard
+          key={definition.key}
+          title={`${definition.label} recorded usage per user`}
+          subtitle={definition.description}
+        >
+          <CustomizationUsageChart definition={definition} data={distribution} />
+        </ChartCard>
+      ))}
+
       <div className="grid-compact">
-        <ChartCard title="Top 5 custom agents" subtitle="Ranked by interaction count.">
-          <RankedBarChart
-            data={customAgents.top}
-            measure="interactionCount"
-            label="Interactions"
-            emptyMessage="No custom agent usage recorded for this range."
-          />
-        </ChartCard>
-        <ChartCard title="Top 5 MCP servers">
-          <RankedBarChart
-            data={mcps.top}
-            measure="interactionCount"
-            label="Interactions"
-            emptyMessage="No MCP server usage recorded for this range."
-          />
-        </ChartCard>
-        <ChartCard title="Top 5 skills">
-          <RankedBarChart
-            data={skills.top}
-            measure="interactionCount"
-            label="Interactions"
-            emptyMessage="No skill usage recorded for this range."
-          />
-        </ChartCard>
-        <ChartCard title="Top 5 plugins">
-          <RankedBarChart
-            data={plugins.top}
-            measure="interactionCount"
-            label="Interactions"
-            emptyMessage="No plugin usage recorded for this range."
-          />
-        </ChartCard>
-        <ChartCard title="Top 5 slash commands">
-          <RankedBarChart
-            data={slashCommands.top}
-            measure="interactionCount"
-            label="Interactions"
-            emptyMessage="No slash command usage recorded for this range."
-          />
-        </ChartCard>
+        {customizations.map(({ definition, ranking }) => (
+          <ChartCard
+            key={definition.key}
+            title={`Top 5 ${definition.plural}`}
+            subtitle={`Ranked by recorded ${definition.unit}, not unique users. ${definition.description}`}
+          >
+            <RankedBarChart
+              data={ranking.top}
+              measure="interactionCount"
+              label={`Recorded ${definition.unit}`}
+              emptyMessage={`No ${definition.plural} usage recorded for this range.`}
+            />
+          </ChartCard>
+        ))}
       </div>
 
-      <RankingDisclosure title="All skills" items={skills.all} />
-      <RankingDisclosure title="All MCP servers" items={mcps.all} />
-      <RankingDisclosure title="All agents" items={customAgents.all} />
-      <RankingDisclosure title="All slash commands" items={slashCommands.all} />
-      <RankingDisclosure title="All plugins" items={plugins.all} />
+      {customizations.map(({ definition, ranking }) => (
+        <RankingDisclosure
+          key={definition.key}
+          title={`All reported ${definition.plural}`}
+          items={ranking.all}
+          definition={definition}
+        />
+      ))}
     </div>
   )
 }

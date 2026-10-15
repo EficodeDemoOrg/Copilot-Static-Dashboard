@@ -56,7 +56,12 @@ export interface UserDay {
   totalsByPlugin: CustomizationTotal[]
   /** Per-slash-command totals from `totals_by_slash_cmd`, keyed on the `slash_cmd` name. */
   totalsBySlashCmd: CustomizationTotal[]
+  /** Distinguishes reported zero activity from unavailable or partly malformed breakdowns. */
+  customizationCoverage: Record<CustomizationKey, CustomizationCoverage>
 }
+
+export type CustomizationKey = 'mcp' | 'customAgent' | 'skill' | 'plugin' | 'slashCommand'
+export type CustomizationCoverage = 'reported' | 'partial' | 'unavailable'
 
 /**
  * One entry of `totals_by_feature`, `totals_by_model_feature`, or
@@ -81,6 +86,7 @@ export interface FeatureTotal {
  */
 export interface CustomizationTotal {
   name: string
+  /** Invocations, agent starts, or MCP connection attempts, depending on the category. */
   interactionCount: number
 }
 

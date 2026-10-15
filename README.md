@@ -90,15 +90,16 @@ weekly adoption, and comparison tables retain their existing selected-range phas
 
 **Recorded customization usage per user**
 
-Five separate frequency charts cover MCP servers, custom agents, skills, plugins, and slash
-commands. The x-axis is the exact number of recorded category events per user in the selected
-records; the y-axis counts unique users with that value. For example, a bar at 10 with height 4
+Five separate dot-and-line frequency charts cover MCP servers, custom agents, skills, plugins,
+and slash commands. The x-axis is the exact number of recorded category events per user in the
+selected records; the y-axis counts unique users with that value. For example, a dot at (10, 4)
 means four users each had 10 recorded events, not that 10 different items were used.
 
 Users with explicitly reported zero activity appear at zero. Users with no usable reporting in
 that category are excluded rather than counted as zero, and the charts state how many included
-users have partial reporting. Only observed exact counts appear, with categorical spacing rather
-than a continuous numeric scale. Long distributions continue in additional chart segments,
+users have partial reporting. Dots are joined by straight lines to guide the eye. Only observed
+exact counts appear, with categorical spacing rather than a continuous numeric scale. Long
+distributions continue in additional chart segments,
 including in print; no counts are bucketed or dropped.
 
 GitHub provides only the top five items per user record, so these are **recorded event totals,

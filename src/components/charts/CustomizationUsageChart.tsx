@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import type { CustomizationDefinition } from '../../data/customizations'
 import { CUSTOMIZATION_COVERAGE_NOTE } from '../../data/customizations'
 import type { CustomizationUsageDistribution } from '../../data/metrics'
@@ -49,7 +49,7 @@ export function CustomizationUsageChart({ data, definition }: Props) {
             </p>
           )}
           <ChartFrame height={280}>
-            <BarChart data={bins} margin={{ top: 8, right: 18, bottom: 38, left: 16 }} accessibilityLayer>
+            <LineChart data={bins} margin={{ top: 8, right: 18, bottom: 38, left: 16 }} accessibilityLayer>
               <CartesianGrid stroke={chrome.grid} vertical={false} />
               <XAxis
                 dataKey="usages"
@@ -84,16 +84,23 @@ export function CustomizationUsageChart({ data, definition }: Props) {
                   fontSize: 12,
                 }}
               />
-              <Tooltip content={Tip} cursor={{ fill: chrome.surface }} />
-              <Bar
+              <Tooltip content={Tip} cursor={{ stroke: chrome.axis, strokeDasharray: '3 3' }} />
+              <Line
+                type="linear"
                 dataKey="users"
                 name="Unique users"
-                fill={measureColor.activeUsers}
-                maxBarSize={52}
-                radius={[3, 3, 0, 0]}
+                stroke={measureColor.activeUsers}
+                strokeWidth={2}
+                dot={{
+                  r: 4,
+                  fill: measureColor.activeUsers,
+                  stroke: chrome.surface,
+                  strokeWidth: 1,
+                }}
+                activeDot={{ r: 5, stroke: chrome.surface, strokeWidth: 2 }}
                 isAnimationActive={false}
               />
-            </BarChart>
+            </LineChart>
           </ChartFrame>
         </div>
       ))}
@@ -101,8 +108,8 @@ export function CustomizationUsageChart({ data, definition }: Props) {
         {fmtNumber(data.reportedUsers)} unique users with usable reporting;{' '}
         {fmtNumber(data.partialUsers)} have partial reporting;{' '}
         {fmtNumber(data.unavailableUsers)} without usable reporting are excluded.
-        Explicitly reported zeroes are included. Each bar is an observed exact count;
-        categorical spacing does not imply equal numeric intervals.
+        Explicitly reported zeroes are included. Each dot is an observed exact count;
+        connecting lines guide the eye, and categorical spacing does not imply equal numeric intervals.
       </p>
       <p className="card__note">{CUSTOMIZATION_COVERAGE_NOTE}</p>
     </div>

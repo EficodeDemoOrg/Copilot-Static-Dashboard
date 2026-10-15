@@ -1,5 +1,6 @@
-import { createElement } from 'react'
+import { Children, createElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { Line, LineChart } from 'recharts'
 import { describe, expect, it, vi } from 'vitest'
 import { CUSTOMIZATION_DEFINITIONS } from '../data/customizations'
 import { CUSTOMIZATION_COLUMNS, compareOrganizationGroups } from '../data/comparisons'
@@ -14,6 +15,16 @@ vi.mock('../hooks/usePrintMode', () => ({
   usePrintMode: () => true,
   PRINT_CHART_WIDTH: 646,
 }))
+
+function chartElements(node: ReactNode): ReactElement<{ children?: ReactNode } & Record<string, unknown>>[] {
+  const elements = []
+  for (const child of Children.toArray(node)) {
+    if (isValidElement<{ children?: ReactNode } & Record<string, unknown>>(child)) {
+      elements.push(child, ...chartElements(child.props.children))
+    }
+  }
+  return elements
+}
 
 describe('customization report labels', () => {
   it.each(CUSTOMIZATION_DEFINITIONS)('labels $plural badges and event values, including print', (definition) => {
@@ -75,6 +86,36 @@ describe('customization report labels', () => {
     expect(markup).toContain('2 without usable reporting are excluded')
     expect(markup).toContain('only the top five')
     expect(markup).toContain('Explicitly reported zeroes')
+    expect(markup).toContain('Each dot is an observed exact count')
+  })
+
+  it.each(CUSTOMIZATION_DEFINITIONS)('plots $plural as dots connected by straight lines', (definition) => {
+    const bins = [{ usages: 0, users: 4 }, { usages: 2, users: 3 }, { usages: 100, users: 1 }]
+    const elements = chartElements(CustomizationUsageChart({
+      definition,
+      data: { bins, reportedUsers: 8, partialUsers: 0, unavailableUsers: 0 },
+    }))
+    const charts = elements.filter((element) => element.type === LineChart)
+    const lines = elements.filter((element) => element.type === Line)
+    expect(charts).toHaveLength(1)
+    expect(charts[0]!.props.data).toEqual(bins)
+    expect(lines).toHaveLength(1)
+    expect(lines[0]!.props).toMatchObject({
+      type: 'linear',
+      dataKey: 'users',
+      dot: { r: 4 },
+      isAnimationActive: false,
+    })
+  })
+
+  it('keeps a visible dot when a category has only one observed usage count', () => {
+    const elements = chartElements(CustomizationUsageChart({
+      definition: CUSTOMIZATION_DEFINITIONS[0]!,
+      data: { bins: [{ usages: 0, users: 5 }], reportedUsers: 5, partialUsers: 0, unavailableUsers: 0 },
+    }))
+    expect(elements.find((element) => element.type === LineChart)!.props.data)
+      .toEqual([{ usages: 0, users: 5 }])
+    expect(elements.find((element) => element.type === Line)!.props.dot).toMatchObject({ r: 4 })
   })
 
   it('distinguishes entirely unavailable reporting from zero', () => {
